@@ -1,8 +1,8 @@
 <dotnetnuke type="Package" version="5.0">
   <packages>
-    <package name="ForrestITServices.Jacaranda2FA" type="Auth_System" version="00.00.16">
+    <package name="ForrestITServices.Jacaranda2FA" type="Auth_System" version="00.00.20">
       <friendlyName>Jacaranda2FA</friendlyName>
-      <description>Jacaranda2FA 00.00.16 authentication provider for DNN Platform 10.3.2. Adds configurable second-factor policy, security audit logging, configurable OTP/trusted-browser/recovery-code controls, one-time recovery codes, and trusted-browser support while preserving DNN password validation and final login handling.</description>
+      <description>Jacaranda2FA 00.00.20 authentication provider for DNN Platform 10.3.2. Adds a small settings-panel spacing improvement while retaining configurable second-factor policy, security audit logging, OTP/trusted-browser/recovery-code controls, one-time recovery codes, and trusted-browser support.</description>
       <owner>
         <name>Trevor Forrester</name>
         <organization>Forrest IT Services</organization>

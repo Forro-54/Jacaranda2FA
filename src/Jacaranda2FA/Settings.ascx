@@ -14,7 +14,7 @@
 <%@ Import Namespace="DotNetNuke.Services.Log.EventLog" %>
 
 <script runat="server">
-    private const string Version = "00.00.16";
+    private const string Version = "00.00.20";
     private const string SettingEnabled = "Jacaranda2FA_Enabled";
     private const string SettingPolicy = "Jacaranda2FA_Policy";
     private const string SettingRoleIds = "Jacaranda2FA_RoleIds";
@@ -434,11 +434,11 @@
     }
 </script>
 
-<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/AuthenticationServices/Jacaranda2FA/Login.css") %>" />
+<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/AuthenticationServices/Jacaranda2FA/Login.css?v=00.00.20") %>" />
 
-<div class="dnnForm jacaranda2fa-settings">
+<div class="dnnForm jacaranda2fa-settings" style="padding-left:10px; padding-right:10px; box-sizing:border-box;">
     <div class="dnnFormMessage dnnFormInfo">
-        <strong>Jacaranda2FA 00.00.16</strong><br />
+        <strong>Jacaranda2FA 00.00.20</strong><br />
         DNN validates the normal password first. Jacaranda2FA then applies the policy below and, where required, verifies an emailed one-time code, an unused recovery code, or a valid trusted-browser token before reporting successful authentication to DNN.
     </div>
 
@@ -465,62 +465,84 @@
         <strong>Enforcement warning:</strong> while DNN's Normal login provider remains enabled, a user can choose Normal login and bypass Jacaranda2FA. Keep Normal login enabled during testing. Only disable it after Jacaranda2FA login, email delivery, recovery codes and SuperUser access have all been tested successfully.
     </div>
 
-    <fieldset>
+    <fieldset class="jacaranda2fa-security-fieldset">
         <legend>Security and audit settings</legend>
         <div class="dnnFormMessage dnnFormInfo">
             These values are portal-specific. Jacaranda2FA clamps saved values to the safe ranges shown below.
         </div>
 
-        <div class="dnnFormItem">
-            <asp:Label ID="lblAuditEnabled" runat="server" AssociatedControlID="chkAuditEnabled" CssClass="dnnFormLabel" Text="Security audit logging" />
-            <span><asp:CheckBox ID="chkAuditEnabled" runat="server" /> <span class="jacaranda2fa-help">Record Jacaranda2FA security events in DNN Event Viewer. Enabled by default.</span></span>
-        </div>
+        <div class="jacaranda2fa-settings-grid">
+            <div class="jacaranda2fa-setting-cell">
+                <asp:Label ID="lblAuditEnabled" runat="server" AssociatedControlID="chkAuditEnabled" CssClass="jacaranda2fa-setting-label" Text="Security audit logging" />
+                <div class="jacaranda2fa-setting-control">
+                    <asp:CheckBox ID="chkAuditEnabled" runat="server" />
+                    <span class="jacaranda2fa-help">Record Jacaranda2FA security events in DNN Event Viewer. Enabled by default.</span>
+                </div>
+            </div>
 
-        <div class="dnnFormItem">
-            <asp:Label ID="lblDiagnosticLogging" runat="server" AssociatedControlID="chkDiagnosticLogging" CssClass="dnnFormLabel" Text="Detailed diagnostics" />
-            <span><asp:CheckBox ID="chkDiagnosticLogging" runat="server" /> <span class="jacaranda2fa-help">Troubleshooting only. Adds low-level provider lifecycle messages to Event Viewer. Disabled by default.</span></span>
-        </div>
+            <div class="jacaranda2fa-setting-cell">
+                <asp:Label ID="lblDiagnosticLogging" runat="server" AssociatedControlID="chkDiagnosticLogging" CssClass="jacaranda2fa-setting-label" Text="Detailed diagnostics" />
+                <div class="jacaranda2fa-setting-control">
+                    <asp:CheckBox ID="chkDiagnosticLogging" runat="server" />
+                    <span class="jacaranda2fa-help">Troubleshooting only. Adds low-level provider lifecycle messages to Event Viewer. Disabled by default.</span>
+                </div>
+            </div>
 
-        <div class="dnnFormItem">
-            <asp:Label ID="lblCodeLifetimeMinutes" runat="server" AssociatedControlID="txtCodeLifetimeMinutes" CssClass="dnnFormLabel" Text="OTP lifetime (minutes)" />
-            <asp:TextBox ID="txtCodeLifetimeMinutes" runat="server" CssClass="jacaranda2fa-number" />
-            <span class="jacaranda2fa-help">2–15 minutes. Default: 5.</span>
-        </div>
+            <div class="jacaranda2fa-setting-cell">
+                <asp:Label ID="lblCodeLifetimeMinutes" runat="server" AssociatedControlID="txtCodeLifetimeMinutes" CssClass="jacaranda2fa-setting-label" Text="OTP lifetime (minutes)" />
+                <div class="jacaranda2fa-setting-control">
+                    <asp:TextBox ID="txtCodeLifetimeMinutes" runat="server" CssClass="jacaranda2fa-number" MaxLength="3" />
+                    <span class="jacaranda2fa-help">2–15 minutes. Default: 5.</span>
+                </div>
+            </div>
 
-        <div class="dnnFormItem">
-            <asp:Label ID="lblMaxCodeAttempts" runat="server" AssociatedControlID="txtMaxCodeAttempts" CssClass="dnnFormLabel" Text="Maximum verification attempts" />
-            <asp:TextBox ID="txtMaxCodeAttempts" runat="server" CssClass="jacaranda2fa-number" />
-            <span class="jacaranda2fa-help">3–10 combined OTP/recovery attempts. Default: 5.</span>
-        </div>
+            <div class="jacaranda2fa-setting-cell">
+                <asp:Label ID="lblMaxCodeAttempts" runat="server" AssociatedControlID="txtMaxCodeAttempts" CssClass="jacaranda2fa-setting-label" Text="Maximum verification attempts" />
+                <div class="jacaranda2fa-setting-control">
+                    <asp:TextBox ID="txtMaxCodeAttempts" runat="server" CssClass="jacaranda2fa-number" MaxLength="3" />
+                    <span class="jacaranda2fa-help">3–10 combined OTP/recovery attempts. Default: 5.</span>
+                </div>
+            </div>
 
-        <div class="dnnFormItem">
-            <asp:Label ID="lblMaxResends" runat="server" AssociatedControlID="txtMaxResends" CssClass="dnnFormLabel" Text="Maximum OTP resends" />
-            <asp:TextBox ID="txtMaxResends" runat="server" CssClass="jacaranda2fa-number" />
-            <span class="jacaranda2fa-help">0–5 resends per challenge. Default: 3.</span>
-        </div>
+            <div class="jacaranda2fa-setting-cell">
+                <asp:Label ID="lblMaxResends" runat="server" AssociatedControlID="txtMaxResends" CssClass="jacaranda2fa-setting-label" Text="Maximum OTP resends" />
+                <div class="jacaranda2fa-setting-control">
+                    <asp:TextBox ID="txtMaxResends" runat="server" CssClass="jacaranda2fa-number" MaxLength="3" />
+                    <span class="jacaranda2fa-help">0–5 resends per challenge. Default: 3.</span>
+                </div>
+            </div>
 
-        <div class="dnnFormItem">
-            <asp:Label ID="lblResendWaitSeconds" runat="server" AssociatedControlID="txtResendWaitSeconds" CssClass="dnnFormLabel" Text="Resend delay (seconds)" />
-            <asp:TextBox ID="txtResendWaitSeconds" runat="server" CssClass="jacaranda2fa-number" />
-            <span class="jacaranda2fa-help">15–300 seconds. Default: 30.</span>
-        </div>
+            <div class="jacaranda2fa-setting-cell">
+                <asp:Label ID="lblResendWaitSeconds" runat="server" AssociatedControlID="txtResendWaitSeconds" CssClass="jacaranda2fa-setting-label" Text="Resend delay (seconds)" />
+                <div class="jacaranda2fa-setting-control">
+                    <asp:TextBox ID="txtResendWaitSeconds" runat="server" CssClass="jacaranda2fa-number" MaxLength="3" />
+                    <span class="jacaranda2fa-help">15–300 seconds. Default: 30.</span>
+                </div>
+            </div>
 
-        <div class="dnnFormItem">
-            <asp:Label ID="lblTrustedBrowserDays" runat="server" AssociatedControlID="txtTrustedBrowserDays" CssClass="dnnFormLabel" Text="Trusted-browser lifetime (days)" />
-            <asp:TextBox ID="txtTrustedBrowserDays" runat="server" CssClass="jacaranda2fa-number" />
-            <span class="jacaranda2fa-help">1–90 days. Default: 30.</span>
-        </div>
+            <div class="jacaranda2fa-setting-cell">
+                <asp:Label ID="lblTrustedBrowserDays" runat="server" AssociatedControlID="txtTrustedBrowserDays" CssClass="jacaranda2fa-setting-label" Text="Trusted-browser lifetime (days)" />
+                <div class="jacaranda2fa-setting-control">
+                    <asp:TextBox ID="txtTrustedBrowserDays" runat="server" CssClass="jacaranda2fa-number" MaxLength="3" />
+                    <span class="jacaranda2fa-help">1–90 days. Default: 30.</span>
+                </div>
+            </div>
 
-        <div class="dnnFormItem">
-            <asp:Label ID="lblMaxTrustedBrowsers" runat="server" AssociatedControlID="txtMaxTrustedBrowsers" CssClass="dnnFormLabel" Text="Maximum trusted browsers" />
-            <asp:TextBox ID="txtMaxTrustedBrowsers" runat="server" CssClass="jacaranda2fa-number" />
-            <span class="jacaranda2fa-help">1–20 active tokens per user. Default: 10.</span>
-        </div>
+            <div class="jacaranda2fa-setting-cell">
+                <asp:Label ID="lblMaxTrustedBrowsers" runat="server" AssociatedControlID="txtMaxTrustedBrowsers" CssClass="jacaranda2fa-setting-label" Text="Maximum trusted browsers" />
+                <div class="jacaranda2fa-setting-control">
+                    <asp:TextBox ID="txtMaxTrustedBrowsers" runat="server" CssClass="jacaranda2fa-number" MaxLength="3" />
+                    <span class="jacaranda2fa-help">1–20 active tokens per user. Default: 10.</span>
+                </div>
+            </div>
 
-        <div class="dnnFormItem">
-            <asp:Label ID="lblRecoveryCodeCount" runat="server" AssociatedControlID="txtRecoveryCodeCount" CssClass="dnnFormLabel" Text="Recovery codes generated" />
-            <asp:TextBox ID="txtRecoveryCodeCount" runat="server" CssClass="jacaranda2fa-number" />
-            <span class="jacaranda2fa-help">4–20 codes per generated set. Default: 8.</span>
+            <div class="jacaranda2fa-setting-cell">
+                <asp:Label ID="lblRecoveryCodeCount" runat="server" AssociatedControlID="txtRecoveryCodeCount" CssClass="jacaranda2fa-setting-label" Text="Recovery codes generated" />
+                <div class="jacaranda2fa-setting-control">
+                    <asp:TextBox ID="txtRecoveryCodeCount" runat="server" CssClass="jacaranda2fa-number" MaxLength="3" />
+                    <span class="jacaranda2fa-help">4–20 codes per generated set. Default: 8.</span>
+                </div>
+            </div>
         </div>
     </fieldset>
 

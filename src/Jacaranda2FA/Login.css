@@ -1,4 +1,4 @@
-/* Jacaranda2FA - DNN email two-factor authentication 00.00.16 */
+/* Jacaranda2FA - DNN email two-factor authentication 00.00.20 */
 .jacaranda2fa-login .jacaranda2fa-intro {
     margin: 0 0 1.25rem 0;
     line-height: 1.55;
@@ -139,18 +139,62 @@ body .dnnLogin .LoginTabGroup .LoginTabSelected * {
 }
 
 
-/* 00.00.16 settings controls */
+/* 00.00.20 settings spacing */
+.jacaranda2fa-settings {
+    padding-left: 10px;
+    padding-right: 10px;
+    box-sizing: border-box;
+}
+
+/* 00.00.20 responsive settings layout */
+.jacaranda2fa-settings .jacaranda2fa-settings-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    row-gap: 16px;
+    align-items: start;
+}
+
+.jacaranda2fa-settings .jacaranda2fa-setting-cell {
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1px solid rgba(128, 128, 128, 0.22);
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.jacaranda2fa-settings .jacaranda2fa-setting-label {
+    display: block;
+    width: auto !important;
+    float: none !important;
+    margin: 0 0 6px 0 !important;
+    padding: 0 !important;
+    font-weight: 600;
+    text-align: left !important;
+}
+
+.jacaranda2fa-settings .jacaranda2fa-setting-control {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+}
+
 .jacaranda2fa-settings .jacaranda2fa-number {
-    width: 7rem;
-    max-width: 100%;
+    width: 85px !important;
+    max-width: 85px !important;
+    min-width: 85px;
+    box-sizing: border-box;
+    font-size: 18px !important;
+    line-height: 1.35;
 }
 
 .jacaranda2fa-settings .jacaranda2fa-help {
     display: inline-block;
-    margin-left: 0.5rem;
-    font-size: 0.9em;
-    line-height: 1.4;
-    opacity: 0.82;
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.55;
+    opacity: 1;
+    flex: 1 1 180px;
 }
 
 .jacaranda2fa-settings fieldset {
@@ -161,3 +205,4 @@ body .dnnLogin .LoginTabGroup .LoginTabSelected * {
 .jacaranda2fa-settings fieldset legend {
     font-weight: 700;
 }
+

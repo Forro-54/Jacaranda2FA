@@ -1,18 +1,7 @@
-Jacaranda2FA 00.00.16
+Jacaranda2FA 00.00.20
 
-- Adds structured Jacaranda2FA security audit events to DNN Event Viewer.
-- Audit events cover password validation outcome, OTP send/resend/verification, OTP expiry and rate limits, recovery-code verification, trusted-browser acceptance/creation/rejection/revocation, policy pass-through, challenge cancellation, recovery-code generation, and settings changes.
-- Security audit logging is enabled by default and can be disabled per portal.
-- Detailed diagnostic lifecycle logging is now a separate troubleshooting option and is disabled by default.
-- Adds portal-specific configurable security settings:
-  * OTP lifetime: 2-15 minutes (default 5).
-  * Maximum combined OTP/recovery verification attempts: 3-10 (default 5).
-  * Maximum OTP resends: 0-5 (default 3).
-  * Resend delay: 15-300 seconds (default 30).
-  * Trusted-browser lifetime: 1-90 days (default 30).
-  * Maximum active trusted browsers per user: 1-20 (default 10).
-  * Recovery codes generated per set: 4-20 (default 8).
-- Saved numeric values are clamped to their documented safe ranges.
-- Updates the trusted-browser stored procedure so the per-user token cap follows the configured portal setting.
-- Keeps 00.00.15 authentication behaviour unchanged when the new settings are left at their defaults.
-- Audit entries never contain passwords, OTP values, recovery codes, email addresses, trusted-browser tokens, token hashes, or session identifiers.
+Accessibility-focused UI maintenance release.
+- Keeps the single-column settings-card layout.
+- Enlarges security setting help/range text to 18px with improved line spacing and contrast.
+- Enlarges numeric setting values to 18px while keeping compact input widths.
+- No authentication or security logic changes.
