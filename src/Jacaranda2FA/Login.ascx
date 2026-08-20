@@ -1,4 +1,4 @@
-﻿<%@ Control Language="C#" AutoEventWireup="false" Inherits="DotNetNuke.Services.Authentication.AuthenticationLoginBase" %>
+<%@ Control Language="C#" AutoEventWireup="false" Inherits="DotNetNuke.Services.Authentication.AuthenticationLoginBase" %>
 <%@ Import Namespace="System" %>
 <%@ Import Namespace="System.Collections.Generic" %>
 <%@ Import Namespace="System.Data" %>
@@ -21,18 +21,44 @@
 
 <script runat="server">
     private const int CodeDigits = 6;
-    private const int CodeLifetimeMinutes = 5;
-    private const int MaxCodeAttempts = 5;
-    private const int MaxResends = 3;
-    private const int ResendWaitSeconds = 30;
-    private const int TrustedBrowserDays = 30;
+    private const int DefaultCodeLifetimeMinutes = 5;
+    private const int DefaultMaxCodeAttempts = 5;
+    private const int DefaultMaxResends = 3;
+    private const int DefaultResendWaitSeconds = 30;
+    private const int DefaultTrustedBrowserDays = 30;
+    private const int DefaultMaxTrustedBrowsers = 10;
     private const string TrustedCookiePrefix = "Jacaranda2FA.Trusted.";
-    private const string Version = "00.00.15";
+    private const string Version = "00.00.16";
     private const string SettingEnabled = "Jacaranda2FA_Enabled";
     private const string SettingPolicy = "Jacaranda2FA_Policy";
     private const string SettingRoleIds = "Jacaranda2FA_RoleIds";
+    private const string SettingAuditEnabled = "Jacaranda2FA_AuditEnabled";
+    private const string SettingDiagnosticLogging = "Jacaranda2FA_DiagnosticLogging";
+    private const string SettingCodeLifetimeMinutes = "Jacaranda2FA_CodeLifetimeMinutes";
+    private const string SettingMaxCodeAttempts = "Jacaranda2FA_MaxCodeAttempts";
+    private const string SettingMaxResends = "Jacaranda2FA_MaxResends";
+    private const string SettingResendWaitSeconds = "Jacaranda2FA_ResendWaitSeconds";
+    private const string SettingTrustedBrowserDays = "Jacaranda2FA_TrustedBrowserDays";
+    private const string SettingMaxTrustedBrowsers = "Jacaranda2FA_MaxTrustedBrowsers";
     private const string StageQueryKey = "jacaranda2fa_stage";
     private bool actionHandled;
+
+    private int CodeLifetimeMinutes { get { return this.GetIntPortalSetting(SettingCodeLifetimeMinutes, DefaultCodeLifetimeMinutes, 2, 15); } }
+    private int MaxCodeAttempts { get { return this.GetIntPortalSetting(SettingMaxCodeAttempts, DefaultMaxCodeAttempts, 3, 10); } }
+    private int MaxResends { get { return this.GetIntPortalSetting(SettingMaxResends, DefaultMaxResends, 0, 5); } }
+    private int ResendWaitSeconds { get { return this.GetIntPortalSetting(SettingResendWaitSeconds, DefaultResendWaitSeconds, 15, 300); } }
+    private int TrustedBrowserDays { get { return this.GetIntPortalSetting(SettingTrustedBrowserDays, DefaultTrustedBrowserDays, 1, 90); } }
+    private int MaxTrustedBrowsers { get { return this.GetIntPortalSetting(SettingMaxTrustedBrowsers, DefaultMaxTrustedBrowsers, 1, 20); } }
+
+    private bool AuditEnabled
+    {
+        get
+        {
+#pragma warning disable CS0618
+            return PortalController.GetPortalSettingAsBoolean(SettingAuditEnabled, this.PortalId, true);
+#pragma warning restore CS0618
+        }
+    }
 
     public override bool Enabled
     {
@@ -42,6 +68,28 @@
             return PortalController.GetPortalSettingAsBoolean(SettingEnabled, this.PortalId, false);
 #pragma warning restore CS0618
         }
+    }
+
+    private int GetIntPortalSetting(string settingName, int defaultValue, int minimum, int maximum)
+    {
+#pragma warning disable CS0618
+        string raw = PortalController.GetPortalSetting(settingName, this.PortalId, defaultValue.ToString(CultureInfo.InvariantCulture));
+#pragma warning restore CS0618
+        int value;
+        if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+        {
+            value = defaultValue;
+        }
+
+        if (value < minimum)
+        {
+            return minimum;
+        }
+        if (value > maximum)
+        {
+            return maximum;
+        }
+        return value;
     }
 
     private string SessionPrefix
@@ -102,6 +150,8 @@
         this.txtRecoveryCode.Attributes["autocapitalize"] = "characters";
         this.txtRecoveryCode.Attributes["spellcheck"] = "false";
         this.txtRecoveryCode.Attributes["maxlength"] = "14";
+        this.litCodeLifetime.Text = this.CodeLifetimeMinutes.ToString(CultureInfo.InvariantCulture);
+        this.litTrustedDays.Text = this.TrustedBrowserDays.ToString(CultureInfo.InvariantCulture);
 
         this.chkRemember.Visible = Host.RememberCheckbox;
 
@@ -126,7 +176,7 @@
         }
 
         // DNN rebuilds authentication provider controls on every request. Restore the
-        // visible stage from the server-side challenge. 00.00.15 continues the clean
+        // visible stage from the server-side challenge. 00.00.16 continues the clean
         // stage one with a clean GET so this decision happens during a normal page load
         // instead of relying on a late postback UI change.
         bool hasChallenge = this.HasChallenge();
@@ -169,7 +219,7 @@
         }
 
         // DNN themes can apply login-tab rules after an authentication provider's own CSS,
-        // including !important rules and background images. 00.00.15 therefore paints only
+        // including !important rules and background images. 00.00.16 therefore paints only
         // DNN's authentication-choice tabs with inline !important properties after rendering.
         // This is presentation-only; it does not change DNN authentication state or permissions.
         string selectVerification = selectVerificationTab ? "true" : "false";
@@ -472,6 +522,7 @@
         if (loginStatus != UserLoginStatus.LOGIN_SUCCESS && loginStatus != UserLoginStatus.LOGIN_SUPERUSER)
         {
             this.LogDiagnostic("DNN password validation did not succeed. Status: " + loginStatus.ToString() + ".");
+            this.LogSecurityEvent("PasswordValidation", user != null ? user.UserID : Null.NullInteger, userName, "Failed", "DNN status: " + loginStatus.ToString());
             bool authenticated = loginStatus != UserLoginStatus.LOGIN_FAILURE;
             string message = loginStatus == UserLoginStatus.LOGIN_USERNOTAPPROVED ? "UserNotAuthorized" : string.Empty;
             UserAuthenticatedEventArgs failedArgs = new UserAuthenticatedEventArgs(user, userName, loginStatus, "DNN");
@@ -483,6 +534,7 @@
         }
 
         this.LogDiagnostic("DNN password validation succeeded; preparing email verification challenge.");
+        this.LogSecurityEvent("PasswordValidation", user != null ? user.UserID : Null.NullInteger, userName, "Success", "DNN password accepted.");
 
         if (user == null)
         {
@@ -494,6 +546,7 @@
         {
             this.ClearChallenge();
             this.LogDiagnostic("DNN password validation succeeded and current policy does not require a second factor for this account; handing authenticated user back to DNN.");
+            this.LogSecurityEvent("PolicyPassThrough", user.UserID, userName, "Success", "Current policy does not require a second factor for this account.");
             UserAuthenticatedEventArgs passThroughArgs = new UserAuthenticatedEventArgs(user, userName, loginStatus, "DNN");
             passThroughArgs.Authenticated = true;
             passThroughArgs.RememberMe = rememberMe;
@@ -505,6 +558,7 @@
         {
             this.ClearChallenge();
             this.LogDiagnostic("DNN password validation succeeded and a valid trusted-browser token was accepted; skipping the email second-factor step.");
+            this.LogSecurityEvent("TrustedBrowserAccepted", user.UserID, userName, "Success", "Valid trusted-browser token accepted after password validation.");
             UserAuthenticatedEventArgs trustedArgs = new UserAuthenticatedEventArgs(user, userName, loginStatus, "DNN");
             trustedArgs.Authenticated = true;
             trustedArgs.RememberMe = rememberMe;
@@ -514,6 +568,7 @@
 
         if (string.IsNullOrWhiteSpace(user.Email) || !Mail.IsValidEmailAddress(user.Email, this.PortalId))
         {
+            this.LogSecurityEvent("SecondFactorUnavailable", user.UserID, userName, "Failed", "Account has no usable registered email address.");
             this.ShowMessage("This account does not have a usable registered email address. Email verification cannot continue.", true);
             return;
         }
@@ -555,6 +610,9 @@
         long expiresTicks = this.GetSessionLong("ExpiresUtcTicks");
         if (expiresTicks <= 0 || DateTime.UtcNow > new DateTime(expiresTicks, DateTimeKind.Utc))
         {
+            int expiredUserId = this.GetSessionInt("UserId");
+            string expiredUserName = Convert.ToString(this.Session[this.Key("UserName")], CultureInfo.InvariantCulture);
+            this.LogSecurityEvent("OtpExpired", expiredUserId, expiredUserName, "Failed", "Verification challenge expired.");
             this.ClearChallenge();
             this.ShowLoginPanel();
             this.ShowMessage("The verification code has expired. Please sign in again.", true);
@@ -580,14 +638,18 @@
             this.Session[this.Key("Attempts")] = attempts;
             this.txtCode.Text = string.Empty;
 
+            int failedUserId = this.GetSessionInt("UserId");
+            string failedUserName = Convert.ToString(this.Session[this.Key("UserName")], CultureInfo.InvariantCulture);
             if (attempts >= MaxCodeAttempts)
             {
+                this.LogSecurityEvent("OtpRateLimit", failedUserId, failedUserName, "Blocked", "Maximum verification attempts reached.");
                 this.ClearChallenge();
                 this.ShowLoginPanel();
                 this.ShowMessage("Too many incorrect verification attempts. Please sign in again.", true);
             }
             else
             {
+                this.LogSecurityEvent("OtpVerification", failedUserId, failedUserName, "Failed", "Incorrect verification code. Attempt " + attempts.ToString(CultureInfo.InvariantCulture) + " of " + MaxCodeAttempts.ToString(CultureInfo.InvariantCulture) + ".");
                 int remaining = MaxCodeAttempts - attempts;
                 this.ShowMessage("That verification code is not correct. " + remaining.ToString(CultureInfo.InvariantCulture) + " attempt(s) remain.", true);
             }
@@ -633,6 +695,9 @@
         long expiresTicks = this.GetSessionLong("ExpiresUtcTicks");
         if (expiresTicks <= 0 || DateTime.UtcNow > new DateTime(expiresTicks, DateTimeKind.Utc))
         {
+            int expiredUserId = this.GetSessionInt("UserId");
+            string expiredUserName = Convert.ToString(this.Session[this.Key("UserName")], CultureInfo.InvariantCulture);
+            this.LogSecurityEvent("RecoverySessionExpired", expiredUserId, expiredUserName, "Failed", "Recovery-code verification session expired.");
             this.ClearChallenge();
             this.ShowLoginPanel();
             this.ShowMessage("The verification session has expired. Please sign in again.", true);
@@ -659,14 +724,17 @@
             this.Session[this.Key("Attempts")] = attempts;
             this.txtRecoveryCode.Text = string.Empty;
 
+            string failedRecoveryUserName = Convert.ToString(this.Session[this.Key("UserName")], CultureInfo.InvariantCulture);
             if (attempts >= MaxCodeAttempts)
             {
+                this.LogSecurityEvent("RecoveryCodeRateLimit", userId, failedRecoveryUserName, "Blocked", "Maximum verification attempts reached.");
                 this.ClearChallenge();
                 this.ShowLoginPanel();
                 this.ShowMessage("Too many incorrect verification attempts. Please sign in again.", true);
             }
             else
             {
+                this.LogSecurityEvent("RecoveryCodeVerification", userId, failedRecoveryUserName, "Failed", "Invalid or already-used recovery code. Attempt " + attempts.ToString(CultureInfo.InvariantCulture) + " of " + MaxCodeAttempts.ToString(CultureInfo.InvariantCulture) + ".");
                 int remaining = MaxCodeAttempts - attempts;
                 this.ShowMessage("That recovery code is not valid or has already been used. " + remaining.ToString(CultureInfo.InvariantCulture) + " attempt(s) remain.", true);
             }
@@ -700,6 +768,12 @@
         // Single use: invalidate the active email challenge before handing control back to DNN.
         this.ClearChallenge();
         this.LogDiagnostic(diagnostic + "; handing authenticated user back to DNN.");
+        this.LogSecurityEvent(
+            string.Equals(diagnostic, "Recovery code accepted", StringComparison.Ordinal) ? "RecoveryCodeVerification" : "OtpVerification",
+            user.UserID,
+            userName,
+            "Success",
+            diagnostic);
         UserAuthenticatedEventArgs successArgs = new UserAuthenticatedEventArgs(user, userName, loginStatus, "DNN");
         successArgs.Authenticated = true;
         successArgs.RememberMe = rememberMe;
@@ -725,6 +799,7 @@
         int resendCount = this.GetSessionInt("ResendCount");
         if (resendCount >= MaxResends)
         {
+            this.LogSecurityEvent("OtpResend", this.GetSessionInt("UserId"), Convert.ToString(this.Session[this.Key("UserName")], CultureInfo.InvariantCulture), "Blocked", "Maximum resend count reached.");
             this.ShowMessage("The resend limit has been reached. Please sign in again to request a new code.", true);
             return;
         }
@@ -737,6 +812,7 @@
             if (elapsed.TotalSeconds < ResendWaitSeconds)
             {
                 int seconds = Math.Max(1, ResendWaitSeconds - (int)elapsed.TotalSeconds);
+                this.LogSecurityEvent("OtpResend", this.GetSessionInt("UserId"), Convert.ToString(this.Session[this.Key("UserName")], CultureInfo.InvariantCulture), "Blocked", "Resend requested before configured delay elapsed.");
                 this.ShowMessage("Please wait " + seconds.ToString(CultureInfo.InvariantCulture) + " second(s) before requesting another code.", true);
                 return;
             }
@@ -768,6 +844,7 @@
         {
             return;
         }
+        this.LogSecurityEvent("ChallengeCancelled", this.GetSessionInt("UserId"), Convert.ToString(this.Session[this.Key("UserName")], CultureInfo.InvariantCulture), "Cancelled", "User cancelled the active second-factor challenge.");
         this.ClearChallenge();
         this.txtCode.Text = string.Empty;
         this.LogDiagnostic("Verification challenge cleared; returning to login options with a clean request.");
@@ -827,6 +904,7 @@
         string fromAddress = this.PortalSettings.Email;
         if (string.IsNullOrWhiteSpace(fromAddress))
         {
+            this.LogSecurityEvent(resend ? "OtpResend" : "OtpSent", user.UserID, user.Username, "Failed", "Portal administrator email address is not configured.");
             this.ShowMessage("The site administrator email address is not configured, so the verification message cannot be sent.", true);
             return false;
         }
@@ -859,7 +937,8 @@
 
             if (!string.IsNullOrEmpty(error))
             {
-                Exceptions.LogException(new Exception("Jacaranda2FA 00.00.15 email delivery error: " + error));
+                Exceptions.LogException(new Exception("Jacaranda2FA 00.00.16 email delivery error: " + error));
+                this.LogSecurityEvent(resend ? "OtpResend" : "OtpSent", user.UserID, user.Username, "Failed", "DNN mail provider reported a delivery error.");
                 this.ShowMessage("DNN reported a problem sending the verification email. Check the site's SMTP configuration and Event Viewer.", true);
                 return false;
             }
@@ -867,9 +946,12 @@
         catch (Exception ex)
         {
             Exceptions.LogException(ex);
+            this.LogSecurityEvent(resend ? "OtpResend" : "OtpSent", user.UserID, user.Username, "Failed", "Mail provider threw an exception.");
             this.ShowMessage("The verification email could not be sent. Check the site's SMTP configuration and Event Viewer.", true);
             return false;
         }
+
+        this.LogSecurityEvent(resend ? "OtpResend" : "OtpSent", user.UserID, user.Username, "Success", resend ? "Replacement verification code accepted by DNN mail provider." : "Verification code accepted by DNN mail provider.");
 
         // Replace the active challenge only after DNN's mail provider accepts the send.
         this.Session[this.Key("CodeSalt")] = Convert.ToBase64String(salt);
@@ -967,6 +1049,8 @@
                 return true;
             }
 
+            UserInfo rejectedUser = UserController.GetUserById(this.PortalId, userId);
+            this.LogSecurityEvent("TrustedBrowserRejected", userId, rejectedUser != null ? rejectedUser.Username : string.Empty, "Failed", "Browser presented a token that was invalid, revoked or expired.");
             this.ExpireTrustedBrowserCookie(userId);
             return false;
         }
@@ -974,6 +1058,8 @@
         {
             // A trusted-browser storage failure must fail closed: require normal 2FA.
             Exceptions.LogException(ex);
+            UserInfo errorUser = UserController.GetUserById(this.PortalId, userId);
+            this.LogSecurityEvent("TrustedBrowserValidation", userId, errorUser != null ? errorUser.Username : string.Empty, "Failed", "Trusted-browser storage error; verification failed closed.");
             this.LogDiagnostic("Trusted-browser validation failed closed; normal second-factor verification will be required.");
             return false;
         }
@@ -997,7 +1083,8 @@
                 this.PortalId,
                 userId,
                 tokenHash,
-                expiresUtc);
+                expiresUtc,
+                this.MaxTrustedBrowsers);
 
             HttpCookie cookie = new HttpCookie(this.TrustedCookieName(userId), token);
             cookie.HttpOnly = true;
@@ -1007,6 +1094,8 @@
             cookie.SameSite = SameSiteMode.Lax;
             this.Response.Cookies.Set(cookie);
 
+            UserInfo trustedUser = UserController.GetUserById(this.PortalId, userId);
+            this.LogSecurityEvent("TrustedBrowserCreated", userId, trustedUser != null ? trustedUser.Username : string.Empty, "Success", "Trusted-browser token created for " + this.TrustedBrowserDays.ToString(CultureInfo.InvariantCulture) + " day(s).");
             this.LogDiagnostic("A trusted-browser token was created after successful second-factor verification.");
             return true;
         }
@@ -1014,6 +1103,8 @@
         {
             // Login still succeeds; only the convenience token is withheld.
             Exceptions.LogException(ex);
+            UserInfo trustedUser = UserController.GetUserById(this.PortalId, userId);
+            this.LogSecurityEvent("TrustedBrowserCreated", userId, trustedUser != null ? trustedUser.Username : string.Empty, "Failed", "Second factor succeeded but trusted-browser token creation failed.");
             this.LogDiagnostic("Second-factor verification succeeded, but the trusted-browser token could not be created.");
             return false;
         }
@@ -1296,18 +1387,59 @@
         return Convert.ToBoolean(value, CultureInfo.InvariantCulture);
     }
 
+    private void LogSecurityEvent(string eventName, int userId, string userName, string result, string reason)
+    {
+        if (!this.AuditEnabled)
+        {
+            return;
+        }
+
+        // Security audit events intentionally exclude passwords, OTP values, recovery codes,
+        // trusted-browser tokens, token hashes, email addresses and session identifiers.
+        try
+        {
+            LogInfo log = new LogInfo();
+            log.LogTypeKey = "ADMIN_ALERT";
+            log.LogPortalID = this.PortalId;
+            log.LogUserID = userId > 0 ? userId : Null.NullInteger;
+            log.LogProperties.Add(new LogDetailInfo("Source", "Jacaranda2FA " + Version));
+            log.LogProperties.Add(new LogDetailInfo("Event", eventName ?? string.Empty));
+            log.LogProperties.Add(new LogDetailInfo("Result", result ?? string.Empty));
+            log.LogProperties.Add(new LogDetailInfo("UserID", userId > 0 ? userId.ToString(CultureInfo.InvariantCulture) : string.Empty));
+            log.LogProperties.Add(new LogDetailInfo("Username", userName ?? string.Empty));
+            log.LogProperties.Add(new LogDetailInfo("PortalID", this.PortalId.ToString(CultureInfo.InvariantCulture)));
+            log.LogProperties.Add(new LogDetailInfo("UTC", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture)));
+            log.LogProperties.Add(new LogDetailInfo("IP Address", this.IPAddress ?? string.Empty));
+            log.LogProperties.Add(new LogDetailInfo("Reason", reason ?? string.Empty));
+            LogController.Instance.AddLog(log);
+        }
+        catch
+        {
+            // Audit logging must never interrupt authentication.
+        }
+    }
+
     private void LogDiagnostic(string message)
     {
-        // Trial diagnostics only. Never include usernames, passwords, OTP values, email addresses,
-        // session identifiers or other authentication secrets in these messages. Logging failure
-        // must never interrupt the authentication flow.
+#pragma warning disable CS0618
+        bool diagnosticEnabled = PortalController.GetPortalSettingAsBoolean(SettingDiagnosticLogging, this.PortalId, false);
+#pragma warning restore CS0618
+        if (!diagnosticEnabled)
+        {
+            return;
+        }
+
+        // Detailed diagnostics are disabled by default. Never include usernames, passwords,
+        // OTP values, email addresses, recovery codes, cookies, token hashes or session identifiers.
         try
         {
             LogInfo log = new LogInfo();
             log.LogTypeKey = "ADMIN_ALERT";
             log.LogPortalID = this.PortalId;
             log.LogUserID = Null.NullInteger;
-            log.LogProperties.Add(new LogDetailInfo("Jacaranda2FA " + Version, message));
+            log.LogProperties.Add(new LogDetailInfo("Source", "Jacaranda2FA " + Version));
+            log.LogProperties.Add(new LogDetailInfo("Event", "Diagnostic"));
+            log.LogProperties.Add(new LogDetailInfo("Message", message ?? string.Empty));
             LogController.Instance.AddLog(log);
         }
         catch
@@ -1377,7 +1509,7 @@
 
     <asp:Panel ID="pnlLogin" runat="server">
         <div class="jacaranda2fa-intro">
-            <strong>Jacaranda2FA <span class="jacaranda2fa-version">00.00.15</span></strong><br />
+            <strong>Jacaranda2FA <span class="jacaranda2fa-version">00.00.16</span></strong><br />
             Enter your normal DNN username and password. If the current Jacaranda2FA policy requires a second factor for your account, a six-digit code will be sent to the email address registered on your account.
         </div>
 
@@ -1412,7 +1544,7 @@
     <asp:Panel ID="pnlVerify" runat="server" Visible="false">
         <div class="jacaranda2fa-intro">
             <strong>Verify your sign-in</strong><br />
-            We sent a six-digit code to <strong><asp:Literal ID="litDestination" runat="server" /></strong>. The code expires after five minutes.
+            We sent a six-digit code to <strong><asp:Literal ID="litDestination" runat="server" /></strong>. The code expires after <asp:Literal ID="litCodeLifetime" runat="server" /> minute(s).
         </div>
         <div class="dnnFormItem jacaranda2fa-code-row">
             <div class="dnnLabel"><asp:Label ID="lblCode" runat="server" AssociatedControlID="txtCode" CssClass="dnnFormLabel" Text="Verification code" /></div>
@@ -1420,7 +1552,7 @@
         </div>
         <div class="dnnFormItem jacaranda2fa-trust-row">
             <asp:Label ID="lblTrustBrowser" runat="server" CssClass="dnnFormLabel" Text="Remember this browser for 2FA" />
-            <span><asp:CheckBox ID="chkTrustBrowser" runat="server" /> <span class="jacaranda2fa-help">Skip the email/recovery-code step on this browser for 30 days after your password is accepted.</span></span>
+            <span><asp:CheckBox ID="chkTrustBrowser" runat="server" /> <span class="jacaranda2fa-help">Skip the email/recovery-code step on this browser for <asp:Literal ID="litTrustedDays" runat="server" /> day(s) after your password is accepted.</span></span>
         </div>
         <div class="dnnFormItem jacaranda2fa-actions">
             <span class="dnnFormLabel">&nbsp;</span>

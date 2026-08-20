@@ -1,22 +1,39 @@
-﻿<%@ Control Language="C#" AutoEventWireup="false" Inherits="DotNetNuke.Services.Authentication.AuthenticationSettingsBase" %>
+<%@ Control Language="C#" AutoEventWireup="false" Inherits="DotNetNuke.Services.Authentication.AuthenticationSettingsBase" %>
 <%@ Import Namespace="System" %>
 <%@ Import Namespace="System.Collections.Generic" %>
 <%@ Import Namespace="System.Globalization" %>
 <%@ Import Namespace="System.Security.Cryptography" %>
 <%@ Import Namespace="System.Text" %>
 <%@ Import Namespace="System.Web" %>
+<%@ Import Namespace="DotNetNuke.Common.Utilities" %>
 <%@ Import Namespace="DotNetNuke.Data" %>
 <%@ Import Namespace="DotNetNuke.Entities.Portals" %>
 <%@ Import Namespace="DotNetNuke.Entities.Users" %>
 <%@ Import Namespace="DotNetNuke.Security.Roles" %>
 <%@ Import Namespace="DotNetNuke.Services.Exceptions" %>
+<%@ Import Namespace="DotNetNuke.Services.Log.EventLog" %>
 
 <script runat="server">
-    private const string Version = "00.00.15";
+    private const string Version = "00.00.16";
     private const string SettingEnabled = "Jacaranda2FA_Enabled";
     private const string SettingPolicy = "Jacaranda2FA_Policy";
     private const string SettingRoleIds = "Jacaranda2FA_RoleIds";
-    private const int RecoveryCodeCount = 8;
+    private const string SettingAuditEnabled = "Jacaranda2FA_AuditEnabled";
+    private const string SettingDiagnosticLogging = "Jacaranda2FA_DiagnosticLogging";
+    private const string SettingCodeLifetimeMinutes = "Jacaranda2FA_CodeLifetimeMinutes";
+    private const string SettingMaxCodeAttempts = "Jacaranda2FA_MaxCodeAttempts";
+    private const string SettingMaxResends = "Jacaranda2FA_MaxResends";
+    private const string SettingResendWaitSeconds = "Jacaranda2FA_ResendWaitSeconds";
+    private const string SettingTrustedBrowserDays = "Jacaranda2FA_TrustedBrowserDays";
+    private const string SettingMaxTrustedBrowsers = "Jacaranda2FA_MaxTrustedBrowsers";
+    private const string SettingRecoveryCodeCount = "Jacaranda2FA_RecoveryCodeCount";
+    private const int DefaultCodeLifetimeMinutes = 5;
+    private const int DefaultMaxCodeAttempts = 5;
+    private const int DefaultMaxResends = 3;
+    private const int DefaultResendWaitSeconds = 30;
+    private const int DefaultTrustedBrowserDays = 30;
+    private const int DefaultMaxTrustedBrowsers = 10;
+    private const int DefaultRecoveryCodeCount = 8;
     private const int RecoveryCodeLength = 12;
     private const string RecoveryAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -47,8 +64,18 @@
     {
 #pragma warning disable CS0618
         this.chkEnabled.Checked = PortalController.GetPortalSettingAsBoolean(SettingEnabled, this.PortalId, false);
+        this.chkAuditEnabled.Checked = PortalController.GetPortalSettingAsBoolean(SettingAuditEnabled, this.PortalId, true);
+        this.chkDiagnosticLogging.Checked = PortalController.GetPortalSettingAsBoolean(SettingDiagnosticLogging, this.PortalId, false);
         string policy = PortalController.GetPortalSetting(SettingPolicy, this.PortalId, "All");
 #pragma warning restore CS0618
+
+        this.txtCodeLifetimeMinutes.Text = this.GetIntPortalSetting(SettingCodeLifetimeMinutes, DefaultCodeLifetimeMinutes, 2, 15).ToString(CultureInfo.InvariantCulture);
+        this.txtMaxCodeAttempts.Text = this.GetIntPortalSetting(SettingMaxCodeAttempts, DefaultMaxCodeAttempts, 3, 10).ToString(CultureInfo.InvariantCulture);
+        this.txtMaxResends.Text = this.GetIntPortalSetting(SettingMaxResends, DefaultMaxResends, 0, 5).ToString(CultureInfo.InvariantCulture);
+        this.txtResendWaitSeconds.Text = this.GetIntPortalSetting(SettingResendWaitSeconds, DefaultResendWaitSeconds, 15, 300).ToString(CultureInfo.InvariantCulture);
+        this.txtTrustedBrowserDays.Text = this.GetIntPortalSetting(SettingTrustedBrowserDays, DefaultTrustedBrowserDays, 1, 90).ToString(CultureInfo.InvariantCulture);
+        this.txtMaxTrustedBrowsers.Text = this.GetIntPortalSetting(SettingMaxTrustedBrowsers, DefaultMaxTrustedBrowsers, 1, 20).ToString(CultureInfo.InvariantCulture);
+        this.txtRecoveryCodeCount.Text = this.GetIntPortalSetting(SettingRecoveryCodeCount, DefaultRecoveryCodeCount, 4, 20).ToString(CultureInfo.InvariantCulture);
 
         if (this.ddlPolicy.Items.FindByValue(policy) != null)
         {
@@ -89,8 +116,25 @@
 
     public override void UpdateSettings()
     {
+        int codeLifetime = this.ParseBoundedInt(this.txtCodeLifetimeMinutes.Text, DefaultCodeLifetimeMinutes, 2, 15);
+        int maxAttempts = this.ParseBoundedInt(this.txtMaxCodeAttempts.Text, DefaultMaxCodeAttempts, 3, 10);
+        int maxResends = this.ParseBoundedInt(this.txtMaxResends.Text, DefaultMaxResends, 0, 5);
+        int resendWait = this.ParseBoundedInt(this.txtResendWaitSeconds.Text, DefaultResendWaitSeconds, 15, 300);
+        int trustedDays = this.ParseBoundedInt(this.txtTrustedBrowserDays.Text, DefaultTrustedBrowserDays, 1, 90);
+        int maxTrusted = this.ParseBoundedInt(this.txtMaxTrustedBrowsers.Text, DefaultMaxTrustedBrowsers, 1, 20);
+        int recoveryCount = this.ParseBoundedInt(this.txtRecoveryCodeCount.Text, DefaultRecoveryCodeCount, 4, 20);
+
         PortalController.UpdatePortalSetting(this.PortalId, SettingEnabled, this.chkEnabled.Checked.ToString());
         PortalController.UpdatePortalSetting(this.PortalId, SettingPolicy, this.ddlPolicy.SelectedValue);
+        PortalController.UpdatePortalSetting(this.PortalId, SettingAuditEnabled, this.chkAuditEnabled.Checked.ToString());
+        PortalController.UpdatePortalSetting(this.PortalId, SettingDiagnosticLogging, this.chkDiagnosticLogging.Checked.ToString());
+        PortalController.UpdatePortalSetting(this.PortalId, SettingCodeLifetimeMinutes, codeLifetime.ToString(CultureInfo.InvariantCulture));
+        PortalController.UpdatePortalSetting(this.PortalId, SettingMaxCodeAttempts, maxAttempts.ToString(CultureInfo.InvariantCulture));
+        PortalController.UpdatePortalSetting(this.PortalId, SettingMaxResends, maxResends.ToString(CultureInfo.InvariantCulture));
+        PortalController.UpdatePortalSetting(this.PortalId, SettingResendWaitSeconds, resendWait.ToString(CultureInfo.InvariantCulture));
+        PortalController.UpdatePortalSetting(this.PortalId, SettingTrustedBrowserDays, trustedDays.ToString(CultureInfo.InvariantCulture));
+        PortalController.UpdatePortalSetting(this.PortalId, SettingMaxTrustedBrowsers, maxTrusted.ToString(CultureInfo.InvariantCulture));
+        PortalController.UpdatePortalSetting(this.PortalId, SettingRecoveryCodeCount, recoveryCount.ToString(CultureInfo.InvariantCulture));
 
         List<string> selected = new List<string>();
         foreach (System.Web.UI.WebControls.ListItem item in this.cblRoles.Items)
@@ -101,6 +145,52 @@
             }
         }
         PortalController.UpdatePortalSetting(this.PortalId, SettingRoleIds, string.Join(",", selected.ToArray()));
+
+        // Echo clamped values back to the controls so an out-of-range entry is visibly corrected.
+        this.txtCodeLifetimeMinutes.Text = codeLifetime.ToString(CultureInfo.InvariantCulture);
+        this.txtMaxCodeAttempts.Text = maxAttempts.ToString(CultureInfo.InvariantCulture);
+        this.txtMaxResends.Text = maxResends.ToString(CultureInfo.InvariantCulture);
+        this.txtResendWaitSeconds.Text = resendWait.ToString(CultureInfo.InvariantCulture);
+        this.txtTrustedBrowserDays.Text = trustedDays.ToString(CultureInfo.InvariantCulture);
+        this.txtMaxTrustedBrowsers.Text = maxTrusted.ToString(CultureInfo.InvariantCulture);
+        this.txtRecoveryCodeCount.Text = recoveryCount.ToString(CultureInfo.InvariantCulture);
+
+        if (this.chkAuditEnabled.Checked)
+        {
+            UserInfo currentUser = UserController.Instance.GetCurrentUserInfo();
+            this.LogSecurityEvent(
+                "SettingsUpdated",
+                currentUser,
+                "Success",
+                "Jacaranda2FA policy/security settings were saved.");
+        }
+    }
+
+    private int GetIntPortalSetting(string settingName, int defaultValue, int minimum, int maximum)
+    {
+#pragma warning disable CS0618
+        string raw = PortalController.GetPortalSetting(settingName, this.PortalId, defaultValue.ToString(CultureInfo.InvariantCulture));
+#pragma warning restore CS0618
+        return this.ParseBoundedInt(raw, defaultValue, minimum, maximum);
+    }
+
+    private int ParseBoundedInt(string raw, int defaultValue, int minimum, int maximum)
+    {
+        int value;
+        if (!int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+        {
+            value = defaultValue;
+        }
+
+        if (value < minimum)
+        {
+            return minimum;
+        }
+        if (value > maximum)
+        {
+            return maximum;
+        }
+        return value;
     }
 
     private void GenerateRecoveryCodes_Click(object sender, EventArgs e)
@@ -119,7 +209,8 @@
         List<string> hashes = new List<string>();
         List<string> salts = new List<string>();
 
-        for (int i = 0; i < RecoveryCodeCount; i++)
+        int recoveryCodeCount = this.GetIntPortalSetting(SettingRecoveryCodeCount, DefaultRecoveryCodeCount, 4, 20);
+        for (int i = 0; i < recoveryCodeCount; i++)
         {
             string raw = this.GenerateRecoveryCode();
             byte[] salt = new byte[16];
@@ -158,6 +249,7 @@
         html.Append("</pre>");
         this.litRecoveryCodes.Text = html.ToString();
         this.RefreshRecoveryStatus();
+        this.LogSecurityEvent("RecoveryCodesGenerated", currentUser, "Success", recoveryCodeCount.ToString(CultureInfo.InvariantCulture) + " new one-time recovery codes generated; previous set invalidated.");
     }
 
     private void RefreshRecoveryStatus()
@@ -181,7 +273,7 @@
         catch (Exception ex)
         {
             Exceptions.LogException(ex);
-            this.litRecoveryStatus.Text = "Recovery-code storage is unavailable. Check that the 00.00.15 database script installed successfully.";
+            this.litRecoveryStatus.Text = "Recovery-code storage is unavailable. Check that the Jacaranda2FA database scripts installed successfully.";
             this.cmdGenerateRecovery.Enabled = false;
         }
     }
@@ -207,7 +299,7 @@
         catch (Exception ex)
         {
             Exceptions.LogException(ex);
-            this.litTrustedBrowserStatus.Text = "Trusted-browser storage is unavailable. Check that the 00.00.15 database script installed successfully.";
+            this.litTrustedBrowserStatus.Text = "Trusted-browser storage is unavailable. Check that the Jacaranda2FA database scripts installed successfully.";
             this.cmdRevokeTrustedBrowsers.Enabled = false;
         }
     }
@@ -229,6 +321,7 @@
             this.ExpireCurrentTrustedBrowserCookie(currentUser.UserID);
             this.ShowTrustedBrowserMessage("All trusted-browser tokens for your account have been revoked.", false);
             this.RefreshTrustedBrowserStatus();
+            this.LogSecurityEvent("TrustedBrowsersRevoked", currentUser, "Success", "All trusted-browser tokens for this account were revoked.");
         }
         catch (Exception ex)
         {
@@ -256,6 +349,40 @@
         cookie.Expires = DateTime.Now.AddDays(-1);
         cookie.SameSite = SameSiteMode.Lax;
         this.Response.Cookies.Set(cookie);
+    }
+
+    private void LogSecurityEvent(string eventName, UserInfo user, string result, string reason)
+    {
+#pragma warning disable CS0618
+        bool auditEnabled = PortalController.GetPortalSettingAsBoolean(SettingAuditEnabled, this.PortalId, true);
+#pragma warning restore CS0618
+        if (!auditEnabled)
+        {
+            return;
+        }
+
+        // Security audit events intentionally exclude passwords, OTP values, recovery codes,
+        // trusted-browser tokens, token hashes, email addresses and session identifiers.
+        try
+        {
+            LogInfo log = new LogInfo();
+            log.LogTypeKey = "ADMIN_ALERT";
+            log.LogPortalID = this.PortalId;
+            log.LogUserID = user != null && user.UserID > 0 ? user.UserID : Null.NullInteger;
+            log.LogProperties.Add(new LogDetailInfo("Source", "Jacaranda2FA " + Version));
+            log.LogProperties.Add(new LogDetailInfo("Event", eventName ?? string.Empty));
+            log.LogProperties.Add(new LogDetailInfo("Result", result ?? string.Empty));
+            log.LogProperties.Add(new LogDetailInfo("UserID", user != null && user.UserID > 0 ? user.UserID.ToString(CultureInfo.InvariantCulture) : string.Empty));
+            log.LogProperties.Add(new LogDetailInfo("Username", user != null ? user.Username ?? string.Empty : string.Empty));
+            log.LogProperties.Add(new LogDetailInfo("PortalID", this.PortalId.ToString(CultureInfo.InvariantCulture)));
+            log.LogProperties.Add(new LogDetailInfo("UTC", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture)));
+            log.LogProperties.Add(new LogDetailInfo("Reason", reason ?? string.Empty));
+            LogController.Instance.AddLog(log);
+        }
+        catch
+        {
+            // Audit logging must never interrupt settings or authentication.
+        }
     }
 
     private void ShowTrustedBrowserMessage(string message, bool error)
@@ -311,7 +438,7 @@
 
 <div class="dnnForm jacaranda2fa-settings">
     <div class="dnnFormMessage dnnFormInfo">
-        <strong>Jacaranda2FA 00.00.15</strong><br />
+        <strong>Jacaranda2FA 00.00.16</strong><br />
         DNN validates the normal password first. Jacaranda2FA then applies the policy below and, where required, verifies an emailed one-time code, an unused recovery code, or a valid trusted-browser token before reporting successful authentication to DNN.
     </div>
 
@@ -339,6 +466,65 @@
     </div>
 
     <fieldset>
+        <legend>Security and audit settings</legend>
+        <div class="dnnFormMessage dnnFormInfo">
+            These values are portal-specific. Jacaranda2FA clamps saved values to the safe ranges shown below.
+        </div>
+
+        <div class="dnnFormItem">
+            <asp:Label ID="lblAuditEnabled" runat="server" AssociatedControlID="chkAuditEnabled" CssClass="dnnFormLabel" Text="Security audit logging" />
+            <span><asp:CheckBox ID="chkAuditEnabled" runat="server" /> <span class="jacaranda2fa-help">Record Jacaranda2FA security events in DNN Event Viewer. Enabled by default.</span></span>
+        </div>
+
+        <div class="dnnFormItem">
+            <asp:Label ID="lblDiagnosticLogging" runat="server" AssociatedControlID="chkDiagnosticLogging" CssClass="dnnFormLabel" Text="Detailed diagnostics" />
+            <span><asp:CheckBox ID="chkDiagnosticLogging" runat="server" /> <span class="jacaranda2fa-help">Troubleshooting only. Adds low-level provider lifecycle messages to Event Viewer. Disabled by default.</span></span>
+        </div>
+
+        <div class="dnnFormItem">
+            <asp:Label ID="lblCodeLifetimeMinutes" runat="server" AssociatedControlID="txtCodeLifetimeMinutes" CssClass="dnnFormLabel" Text="OTP lifetime (minutes)" />
+            <asp:TextBox ID="txtCodeLifetimeMinutes" runat="server" CssClass="jacaranda2fa-number" />
+            <span class="jacaranda2fa-help">2–15 minutes. Default: 5.</span>
+        </div>
+
+        <div class="dnnFormItem">
+            <asp:Label ID="lblMaxCodeAttempts" runat="server" AssociatedControlID="txtMaxCodeAttempts" CssClass="dnnFormLabel" Text="Maximum verification attempts" />
+            <asp:TextBox ID="txtMaxCodeAttempts" runat="server" CssClass="jacaranda2fa-number" />
+            <span class="jacaranda2fa-help">3–10 combined OTP/recovery attempts. Default: 5.</span>
+        </div>
+
+        <div class="dnnFormItem">
+            <asp:Label ID="lblMaxResends" runat="server" AssociatedControlID="txtMaxResends" CssClass="dnnFormLabel" Text="Maximum OTP resends" />
+            <asp:TextBox ID="txtMaxResends" runat="server" CssClass="jacaranda2fa-number" />
+            <span class="jacaranda2fa-help">0–5 resends per challenge. Default: 3.</span>
+        </div>
+
+        <div class="dnnFormItem">
+            <asp:Label ID="lblResendWaitSeconds" runat="server" AssociatedControlID="txtResendWaitSeconds" CssClass="dnnFormLabel" Text="Resend delay (seconds)" />
+            <asp:TextBox ID="txtResendWaitSeconds" runat="server" CssClass="jacaranda2fa-number" />
+            <span class="jacaranda2fa-help">15–300 seconds. Default: 30.</span>
+        </div>
+
+        <div class="dnnFormItem">
+            <asp:Label ID="lblTrustedBrowserDays" runat="server" AssociatedControlID="txtTrustedBrowserDays" CssClass="dnnFormLabel" Text="Trusted-browser lifetime (days)" />
+            <asp:TextBox ID="txtTrustedBrowserDays" runat="server" CssClass="jacaranda2fa-number" />
+            <span class="jacaranda2fa-help">1–90 days. Default: 30.</span>
+        </div>
+
+        <div class="dnnFormItem">
+            <asp:Label ID="lblMaxTrustedBrowsers" runat="server" AssociatedControlID="txtMaxTrustedBrowsers" CssClass="dnnFormLabel" Text="Maximum trusted browsers" />
+            <asp:TextBox ID="txtMaxTrustedBrowsers" runat="server" CssClass="jacaranda2fa-number" />
+            <span class="jacaranda2fa-help">1–20 active tokens per user. Default: 10.</span>
+        </div>
+
+        <div class="dnnFormItem">
+            <asp:Label ID="lblRecoveryCodeCount" runat="server" AssociatedControlID="txtRecoveryCodeCount" CssClass="dnnFormLabel" Text="Recovery codes generated" />
+            <asp:TextBox ID="txtRecoveryCodeCount" runat="server" CssClass="jacaranda2fa-number" />
+            <span class="jacaranda2fa-help">4–20 codes per generated set. Default: 8.</span>
+        </div>
+    </fieldset>
+
+    <fieldset>
         <legend>Recovery codes for your account</legend>
         <div class="dnnFormItem">
             <span class="dnnFormLabel">Current status</span>
@@ -357,7 +543,7 @@
     <fieldset>
         <legend>Trusted browsers for your account</legend>
         <div class="dnnFormMessage dnnFormInfo">
-            After a successful email or recovery-code verification, you may choose <strong>Remember this browser for 2FA</strong>. The browser then skips the second-factor step for 30 days, but the normal DNN password is still required.
+            After a successful email or recovery-code verification, you may choose <strong>Remember this browser for 2FA</strong>. The browser then skips the second-factor step for the configured trusted-browser lifetime, but the normal DNN password is still required.
         </div>
         <div class="dnnFormItem">
             <span class="dnnFormLabel">Current status</span>
@@ -372,8 +558,4 @@
         </div>
     </fieldset>
 
-    <div class="dnnFormItem">
-        <span class="dnnFormLabel">Email-code limits</span>
-        <div>6-digit code; 5-minute expiry; 5 combined verification attempts; up to 3 resends; minimum 30 seconds between resends.</div>
-    </div>
 </div>

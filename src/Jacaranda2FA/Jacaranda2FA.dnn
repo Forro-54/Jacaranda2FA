@@ -1,8 +1,8 @@
-﻿<dotnetnuke type="Package" version="5.0">
+<dotnetnuke type="Package" version="5.0">
   <packages>
-    <package name="ForrestITServices.Jacaranda2FA" type="Auth_System" version="00.00.15">
+    <package name="ForrestITServices.Jacaranda2FA" type="Auth_System" version="00.00.16">
       <friendlyName>Jacaranda2FA</friendlyName>
-      <description>Jacaranda2FA 00.00.15 authentication provider for DNN Platform 10.3.2. Adds configurable all-user, administrator or selected-role second-factor policy, one-time recovery codes, and 30-day trusted-browser support while preserving DNN password validation and final login handling.</description>
+      <description>Jacaranda2FA 00.00.16 authentication provider for DNN Platform 10.3.2. Adds configurable second-factor policy, security audit logging, configurable OTP/trusted-browser/recovery-code controls, one-time recovery codes, and trusted-browser support while preserving DNN password validation and final login handling.</description>
       <owner>
         <name>Trevor Forrester</name>
         <organization>Forrest IT Services</organization>
@@ -21,13 +21,13 @@
             <basePath>DesktopModules\AuthenticationServices\Jacaranda2FA</basePath>
             <script type="Install">
               <path>Providers\DataProviders\SqlDataProvider</path>
-              <name>00.00.15.SqlDataProvider</name>
-              <version>00.00.15</version>
+              <name>00.00.16.SqlDataProvider</name>
+              <version>00.00.16</version>
             </script>
             <script type="UnInstall">
               <path>Providers\DataProviders\SqlDataProvider</path>
               <name>Uninstall.SqlDataProvider</name>
-              <version>00.00.15</version>
+              <version>00.00.16</version>
             </script>
           </scripts>
         </component>
@@ -50,7 +50,7 @@
             <file><name>license.txt</name></file>
             <file><name>releasenotes.txt</name></file>
             <file><name>README-TESTING.txt</name></file>
-            <file><path>Providers/DataProviders/SqlDataProvider</path><name>00.00.15.SqlDataProvider</name></file>
+            <file><path>Providers/DataProviders/SqlDataProvider</path><name>00.00.16.SqlDataProvider</name></file>
             <file><path>Providers/DataProviders/SqlDataProvider</path><name>Uninstall.SqlDataProvider</name></file>
           </files>
         </component>

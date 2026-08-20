@@ -1,4 +1,4 @@
-﻿/* Jacaranda2FA - DNN email two-factor authentication 00.00.15 */
+/* Jacaranda2FA - DNN email two-factor authentication 00.00.16 */
 .jacaranda2fa-login .jacaranda2fa-intro {
     margin: 0 0 1.25rem 0;
     line-height: 1.55;
@@ -58,7 +58,7 @@ body .dnnLogin .LoginTabGroup::after {
     clear: both;
 }
 
-/* Fallback styling for DNN authentication choices. 00.00.15 also applies the
+/* Fallback styling for DNN authentication choices. 00.00.16 also applies the
    same states inline after rendering because DNN/theme stylesheet ordering varies. */
 body .dnnLogin .LoginTabGroup .LoginTab,
 body .dnnLogin .LoginTabGroup .LoginTabHover {
@@ -136,4 +136,28 @@ body .dnnLogin .LoginTabGroup .LoginTabSelected * {
 .jacaranda2fa-login .jacaranda2fa-trust-row {
     margin-top: 0.75rem;
     margin-bottom: 0.75rem;
+}
+
+
+/* 00.00.16 settings controls */
+.jacaranda2fa-settings .jacaranda2fa-number {
+    width: 7rem;
+    max-width: 100%;
+}
+
+.jacaranda2fa-settings .jacaranda2fa-help {
+    display: inline-block;
+    margin-left: 0.5rem;
+    font-size: 0.9em;
+    line-height: 1.4;
+    opacity: 0.82;
+}
+
+.jacaranda2fa-settings fieldset {
+    margin-top: 1.25rem;
+    margin-bottom: 1.25rem;
+}
+
+.jacaranda2fa-settings fieldset legend {
+    font-weight: 700;
 }

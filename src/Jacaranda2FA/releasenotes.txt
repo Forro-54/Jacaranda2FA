@@ -1,11 +1,18 @@
-﻿Jacaranda2FA 00.00.15
+Jacaranda2FA 00.00.16
 
-- Adds genuine "Remember this browser for 2FA" support for 30 days.
-- A trusted browser still requires the correct DNN username/password; it only skips the email/recovery-code second-factor step.
-- Trusted-browser tokens are generated with 256 bits of cryptographic randomness. Only SHA-256 token hashes are stored in the database; the raw token exists only in the browser cookie.
-- Trusted-browser cookies are HttpOnly, use SameSite=Lax, and are marked Secure when the login request is HTTPS.
-- Trusted-browser tokens are tied to PortalID and UserID and expire after 30 days.
-- A maximum of 10 active trusted-browser tokens is retained per user.
-- Adds a settings action to revoke all trusted browsers for the signed-in account.
-- Renames the existing DNN persistence checkbox from "Remember me" to "Keep me signed in" to distinguish DNN's persistent login cookie from Jacaranda2FA trusted-browser behaviour.
-- Preserves the confirmed-working 00.00.14 role policies, email OTP flow, recovery codes, and DNN final authentication hand-off.
+- Adds structured Jacaranda2FA security audit events to DNN Event Viewer.
+- Audit events cover password validation outcome, OTP send/resend/verification, OTP expiry and rate limits, recovery-code verification, trusted-browser acceptance/creation/rejection/revocation, policy pass-through, challenge cancellation, recovery-code generation, and settings changes.
+- Security audit logging is enabled by default and can be disabled per portal.
+- Detailed diagnostic lifecycle logging is now a separate troubleshooting option and is disabled by default.
+- Adds portal-specific configurable security settings:
+  * OTP lifetime: 2-15 minutes (default 5).
+  * Maximum combined OTP/recovery verification attempts: 3-10 (default 5).
+  * Maximum OTP resends: 0-5 (default 3).
+  * Resend delay: 15-300 seconds (default 30).
+  * Trusted-browser lifetime: 1-90 days (default 30).
+  * Maximum active trusted browsers per user: 1-20 (default 10).
+  * Recovery codes generated per set: 4-20 (default 8).
+- Saved numeric values are clamped to their documented safe ranges.
+- Updates the trusted-browser stored procedure so the per-user token cap follows the configured portal setting.
+- Keeps 00.00.15 authentication behaviour unchanged when the new settings are left at their defaults.
+- Audit entries never contain passwords, OTP values, recovery codes, email addresses, trusted-browser tokens, token hashes, or session identifiers.
