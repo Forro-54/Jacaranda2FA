@@ -1,0 +1,60 @@
+﻿<dotnetnuke type="Package" version="5.0">
+  <packages>
+    <package name="ForrestITServices.Jacaranda2FA" type="Auth_System" version="00.00.15">
+      <friendlyName>Jacaranda2FA</friendlyName>
+      <description>Jacaranda2FA 00.00.15 authentication provider for DNN Platform 10.3.2. Adds configurable all-user, administrator or selected-role second-factor policy, one-time recovery codes, and 30-day trusted-browser support while preserving DNN password validation and final login handling.</description>
+      <owner>
+        <name>Trevor Forrester</name>
+        <organization>Forrest IT Services</organization>
+        <url>https://forrestitservices.org</url>
+        <email>webmaster@forrestitservices.org</email>
+      </owner>
+      <license src="license.txt" />
+      <releaseNotes src="releasenotes.txt" />
+      <azureCompatible>true</azureCompatible>
+      <dependencies>
+        <dependency type="CoreVersion">10.03.02</dependency>
+      </dependencies>
+      <components>
+        <component type="Script">
+          <scripts>
+            <basePath>DesktopModules\AuthenticationServices\Jacaranda2FA</basePath>
+            <script type="Install">
+              <path>Providers\DataProviders\SqlDataProvider</path>
+              <name>00.00.15.SqlDataProvider</name>
+              <version>00.00.15</version>
+            </script>
+            <script type="UnInstall">
+              <path>Providers\DataProviders\SqlDataProvider</path>
+              <name>Uninstall.SqlDataProvider</name>
+              <version>00.00.15</version>
+            </script>
+          </scripts>
+        </component>
+        <component type="AuthenticationSystem">
+          <authenticationService>
+            <type>Jacaranda2FA</type>
+            <settingsControlSrc>DesktopModules/AuthenticationServices/Jacaranda2FA/Settings.ascx</settingsControlSrc>
+            <loginControlSrc>DesktopModules/AuthenticationServices/Jacaranda2FA/Login.ascx</loginControlSrc>
+            <logoffControlSrc />
+          </authenticationService>
+        </component>
+        <component type="File">
+          <files>
+            <basePath>DesktopModules/AuthenticationServices/Jacaranda2FA</basePath>
+            <file><name>Login.ascx</name></file>
+            <file><name>Login.css</name></file>
+            <file><name>Settings.ascx</name></file>
+            <file><path>App_LocalResources</path><name>Login.ascx.resx</name></file>
+            <file><path>App_LocalResources</path><name>Settings.ascx.resx</name></file>
+            <file><name>license.txt</name></file>
+            <file><name>releasenotes.txt</name></file>
+            <file><name>README-TESTING.txt</name></file>
+            <file><path>Providers/DataProviders/SqlDataProvider</path><name>00.00.15.SqlDataProvider</name></file>
+            <file><path>Providers/DataProviders/SqlDataProvider</path><name>Uninstall.SqlDataProvider</name></file>
+          </files>
+        </component>
+      </components>
+    </package>
+  </packages>
+</dotnetnuke>

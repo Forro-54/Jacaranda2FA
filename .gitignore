@@ -1,0 +1,37 @@
+# Visual Studio / VS Code user files
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build / package output
+bin/
+obj/
+dist/*
+!dist/.gitkeep
+*.nupkg
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.log
+~$*
+Thumbs.db
+.DS_Store
+
+# DNN website/runtime files - do not commit a whole test site
+Website/
+wwwroot/
+Portals/
+App_Data/
+
+# Secrets / local configuration
+web.config
+appsettings.*.json
+*.pfx
+*.snk
+.env
+.env.*

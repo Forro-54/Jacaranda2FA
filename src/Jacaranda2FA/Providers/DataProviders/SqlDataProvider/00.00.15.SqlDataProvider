@@ -1,0 +1,230 @@
+﻿/* Jacaranda2FA 00.00.14 - recovery code storage */
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes]') AND type = N'U')
+BEGIN
+    CREATE TABLE {databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes]
+    (
+        [RecoveryCodeID] INT IDENTITY(1,1) NOT NULL,
+        [PortalID] INT NOT NULL,
+        [UserID] INT NOT NULL,
+        [CodeHash] NVARCHAR(88) NOT NULL,
+        [CodeSalt] NVARCHAR(44) NOT NULL,
+        [CreatedOnDate] DATETIME NOT NULL CONSTRAINT [DF_{objectQualifier}Jacaranda2FA_RecoveryCodes_CreatedOnDate] DEFAULT (GETUTCDATE()),
+        [UsedOnDate] DATETIME NULL,
+        CONSTRAINT [PK_{objectQualifier}Jacaranda2FA_RecoveryCodes] PRIMARY KEY CLUSTERED ([RecoveryCodeID] ASC)
+    );
+
+    CREATE NONCLUSTERED INDEX [IX_{objectQualifier}Jacaranda2FA_RecoveryCodes_User]
+        ON {databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes] ([PortalID], [UserID], [UsedOnDate]);
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_AddRecoveryCode]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_AddRecoveryCode]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_AddRecoveryCode]
+    @PortalID INT,
+    @UserID INT,
+    @CodeHash NVARCHAR(88),
+    @CodeSalt NVARCHAR(44)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO {databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes]
+        ([PortalID], [UserID], [CodeHash], [CodeSalt], [CreatedOnDate], [UsedOnDate])
+    VALUES
+        (@PortalID, @UserID, @CodeHash, @CodeSalt, GETUTCDATE(), NULL);
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_DeleteRecoveryCodes]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_DeleteRecoveryCodes]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_DeleteRecoveryCodes]
+    @PortalID INT,
+    @UserID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DELETE FROM {databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes]
+    WHERE [PortalID] = @PortalID AND [UserID] = @UserID;
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_CountRecoveryCodes]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_CountRecoveryCodes]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_CountRecoveryCodes]
+    @PortalID INT,
+    @UserID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT COUNT(*)
+    FROM {databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes]
+    WHERE [PortalID] = @PortalID AND [UserID] = @UserID AND [UsedOnDate] IS NULL;
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_GetRecoveryCodes]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_GetRecoveryCodes]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_GetRecoveryCodes]
+    @PortalID INT,
+    @UserID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT [RecoveryCodeID], [CodeHash], [CodeSalt]
+    FROM {databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes]
+    WHERE [PortalID] = @PortalID AND [UserID] = @UserID AND [UsedOnDate] IS NULL
+    ORDER BY [RecoveryCodeID];
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_UseRecoveryCode]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_UseRecoveryCode]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_UseRecoveryCode]
+    @RecoveryCodeID INT,
+    @PortalID INT,
+    @UserID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE {databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes]
+       SET [UsedOnDate] = GETUTCDATE()
+     WHERE [RecoveryCodeID] = @RecoveryCodeID
+       AND [PortalID] = @PortalID
+       AND [UserID] = @UserID
+       AND [UsedOnDate] IS NULL;
+    SELECT @@ROWCOUNT;
+END
+GO
+
+/* Jacaranda2FA 00.00.15 - trusted browser storage */
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_TrustedBrowsers]') AND type = N'U')
+BEGIN
+    CREATE TABLE {databaseOwner}[{objectQualifier}Jacaranda2FA_TrustedBrowsers]
+    (
+        [TrustedBrowserID] INT IDENTITY(1,1) NOT NULL,
+        [PortalID] INT NOT NULL,
+        [UserID] INT NOT NULL,
+        [TokenHash] NVARCHAR(88) COLLATE Latin1_General_100_BIN2 NOT NULL,
+        [CreatedOnDate] DATETIME NOT NULL CONSTRAINT [DF_{objectQualifier}Jacaranda2FA_TrustedBrowsers_CreatedOnDate] DEFAULT (GETUTCDATE()),
+        [ExpiresOnDate] DATETIME NOT NULL,
+        [LastUsedOnDate] DATETIME NULL,
+        CONSTRAINT [PK_{objectQualifier}Jacaranda2FA_TrustedBrowsers] PRIMARY KEY CLUSTERED ([TrustedBrowserID] ASC)
+    );
+
+    CREATE NONCLUSTERED INDEX [IX_{objectQualifier}Jacaranda2FA_TrustedBrowsers_UserToken]
+        ON {databaseOwner}[{objectQualifier}Jacaranda2FA_TrustedBrowsers] ([PortalID], [UserID], [TokenHash], [ExpiresOnDate]);
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_AddTrustedBrowser]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_AddTrustedBrowser]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_AddTrustedBrowser]
+    @PortalID INT,
+    @UserID INT,
+    @TokenHash NVARCHAR(88),
+    @ExpiresOnDate DATETIME
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DELETE FROM {databaseOwner}[{objectQualifier}Jacaranda2FA_TrustedBrowsers]
+     WHERE [PortalID] = @PortalID
+       AND [UserID] = @UserID
+       AND [ExpiresOnDate] <= GETUTCDATE();
+
+    INSERT INTO {databaseOwner}[{objectQualifier}Jacaranda2FA_TrustedBrowsers]
+        ([PortalID], [UserID], [TokenHash], [CreatedOnDate], [ExpiresOnDate], [LastUsedOnDate])
+    VALUES
+        (@PortalID, @UserID, @TokenHash, GETUTCDATE(), @ExpiresOnDate, NULL);
+
+    ;WITH Ranked AS
+    (
+        SELECT [TrustedBrowserID],
+               ROW_NUMBER() OVER (ORDER BY [CreatedOnDate] DESC, [TrustedBrowserID] DESC) AS [RowNumber]
+          FROM {databaseOwner}[{objectQualifier}Jacaranda2FA_TrustedBrowsers]
+         WHERE [PortalID] = @PortalID
+           AND [UserID] = @UserID
+    )
+    DELETE FROM Ranked WHERE [RowNumber] > 10;
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_ValidateTrustedBrowser]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_ValidateTrustedBrowser]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_ValidateTrustedBrowser]
+    @PortalID INT,
+    @UserID INT,
+    @TokenHash NVARCHAR(88)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @TrustedBrowserID INT;
+
+    SELECT TOP 1 @TrustedBrowserID = [TrustedBrowserID]
+      FROM {databaseOwner}[{objectQualifier}Jacaranda2FA_TrustedBrowsers]
+     WHERE [PortalID] = @PortalID
+       AND [UserID] = @UserID
+       AND [TokenHash] = @TokenHash
+       AND [ExpiresOnDate] > GETUTCDATE()
+     ORDER BY [TrustedBrowserID] DESC;
+
+    IF @TrustedBrowserID IS NOT NULL
+    BEGIN
+        UPDATE {databaseOwner}[{objectQualifier}Jacaranda2FA_TrustedBrowsers]
+           SET [LastUsedOnDate] = GETUTCDATE()
+         WHERE [TrustedBrowserID] = @TrustedBrowserID;
+
+        SELECT @TrustedBrowserID;
+    END
+    ELSE
+    BEGIN
+        SELECT 0;
+    END
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_CountTrustedBrowsers]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_CountTrustedBrowsers]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_CountTrustedBrowsers]
+    @PortalID INT,
+    @UserID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DELETE FROM {databaseOwner}[{objectQualifier}Jacaranda2FA_TrustedBrowsers]
+     WHERE [PortalID] = @PortalID
+       AND [UserID] = @UserID
+       AND [ExpiresOnDate] <= GETUTCDATE();
+
+    SELECT COUNT(*)
+      FROM {databaseOwner}[{objectQualifier}Jacaranda2FA_TrustedBrowsers]
+     WHERE [PortalID] = @PortalID
+       AND [UserID] = @UserID
+       AND [ExpiresOnDate] > GETUTCDATE();
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_RevokeTrustedBrowsers]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_RevokeTrustedBrowsers]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_RevokeTrustedBrowsers]
+    @PortalID INT,
+    @UserID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DELETE FROM {databaseOwner}[{objectQualifier}Jacaranda2FA_TrustedBrowsers]
+     WHERE [PortalID] = @PortalID
+       AND [UserID] = @UserID;
+END
+GO

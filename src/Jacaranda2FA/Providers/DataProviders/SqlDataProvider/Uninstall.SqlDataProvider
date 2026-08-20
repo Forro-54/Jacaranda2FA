@@ -1,0 +1,22 @@
+﻿IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_RevokeTrustedBrowsers]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_RevokeTrustedBrowsers]
+GO
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_CountTrustedBrowsers]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_CountTrustedBrowsers]
+GO
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_ValidateTrustedBrowser]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_ValidateTrustedBrowser]
+GO
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_AddTrustedBrowser]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_AddTrustedBrowser]
+GO
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_TrustedBrowsers]', N'U') IS NOT NULL DROP TABLE {databaseOwner}[{objectQualifier}Jacaranda2FA_TrustedBrowsers]
+GO
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_UseRecoveryCode]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_UseRecoveryCode]
+GO
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_GetRecoveryCodes]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_GetRecoveryCodes]
+GO
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_CountRecoveryCodes]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_CountRecoveryCodes]
+GO
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_DeleteRecoveryCodes]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_DeleteRecoveryCodes]
+GO
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_AddRecoveryCode]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_AddRecoveryCode]
+GO
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes]', N'U') IS NOT NULL DROP TABLE {databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes]
+GO

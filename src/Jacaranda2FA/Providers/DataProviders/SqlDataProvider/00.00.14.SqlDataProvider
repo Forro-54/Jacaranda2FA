@@ -1,0 +1,102 @@
+/* Jacaranda2FA 00.00.14 - recovery code storage */
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes]') AND type = N'U')
+BEGIN
+    CREATE TABLE {databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes]
+    (
+        [RecoveryCodeID] INT IDENTITY(1,1) NOT NULL,
+        [PortalID] INT NOT NULL,
+        [UserID] INT NOT NULL,
+        [CodeHash] NVARCHAR(88) NOT NULL,
+        [CodeSalt] NVARCHAR(44) NOT NULL,
+        [CreatedOnDate] DATETIME NOT NULL CONSTRAINT [DF_{objectQualifier}Jacaranda2FA_RecoveryCodes_CreatedOnDate] DEFAULT (GETUTCDATE()),
+        [UsedOnDate] DATETIME NULL,
+        CONSTRAINT [PK_{objectQualifier}Jacaranda2FA_RecoveryCodes] PRIMARY KEY CLUSTERED ([RecoveryCodeID] ASC)
+    );
+
+    CREATE NONCLUSTERED INDEX [IX_{objectQualifier}Jacaranda2FA_RecoveryCodes_User]
+        ON {databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes] ([PortalID], [UserID], [UsedOnDate]);
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_AddRecoveryCode]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_AddRecoveryCode]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_AddRecoveryCode]
+    @PortalID INT,
+    @UserID INT,
+    @CodeHash NVARCHAR(88),
+    @CodeSalt NVARCHAR(44)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO {databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes]
+        ([PortalID], [UserID], [CodeHash], [CodeSalt], [CreatedOnDate], [UsedOnDate])
+    VALUES
+        (@PortalID, @UserID, @CodeHash, @CodeSalt, GETUTCDATE(), NULL);
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_DeleteRecoveryCodes]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_DeleteRecoveryCodes]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_DeleteRecoveryCodes]
+    @PortalID INT,
+    @UserID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DELETE FROM {databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes]
+    WHERE [PortalID] = @PortalID AND [UserID] = @UserID;
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_CountRecoveryCodes]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_CountRecoveryCodes]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_CountRecoveryCodes]
+    @PortalID INT,
+    @UserID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT COUNT(*)
+    FROM {databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes]
+    WHERE [PortalID] = @PortalID AND [UserID] = @UserID AND [UsedOnDate] IS NULL;
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_GetRecoveryCodes]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_GetRecoveryCodes]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_GetRecoveryCodes]
+    @PortalID INT,
+    @UserID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT [RecoveryCodeID], [CodeHash], [CodeSalt]
+    FROM {databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes]
+    WHERE [PortalID] = @PortalID AND [UserID] = @UserID AND [UsedOnDate] IS NULL
+    ORDER BY [RecoveryCodeID];
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_UseRecoveryCode]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_UseRecoveryCode]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_UseRecoveryCode]
+    @RecoveryCodeID INT,
+    @PortalID INT,
+    @UserID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE {databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes]
+       SET [UsedOnDate] = GETUTCDATE()
+     WHERE [RecoveryCodeID] = @RecoveryCodeID
+       AND [PortalID] = @PortalID
+       AND [UserID] = @UserID
+       AND [UsedOnDate] IS NULL;
+    SELECT @@ROWCOUNT;
+END
+GO

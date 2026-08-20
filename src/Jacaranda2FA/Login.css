@@ -1,0 +1,139 @@
+﻿/* Jacaranda2FA - DNN email two-factor authentication 00.00.15 */
+.jacaranda2fa-login .jacaranda2fa-intro {
+    margin: 0 0 1.25rem 0;
+    line-height: 1.55;
+}
+
+.jacaranda2fa-login .jacaranda2fa-message {
+    display: block;
+    margin: 0 0 1rem 0;
+}
+
+.jacaranda2fa-login .jacaranda2fa-code {
+    max-width: 14rem;
+    min-height: 48px;
+    font-size: 1.55rem;
+    font-weight: 700;
+    letter-spacing: 0.28rem;
+    text-align: center;
+}
+
+.jacaranda2fa-login .jacaranda2fa-actions .dnnPrimaryAction,
+.jacaranda2fa-login .jacaranda2fa-actions .dnnSecondaryAction,
+.jacaranda2fa-login .jacaranda2fa-resend-row .dnnSecondaryAction {
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+@media (max-width: 767px) {
+    .jacaranda2fa-login .jacaranda2fa-code {
+        max-width: 100%;
+        width: 100%;
+    }
+}
+
+.jacaranda2fa-version {
+    font-size: 0.82em;
+    font-weight: normal;
+    opacity: 0.75;
+    white-space: nowrap;
+}
+
+
+/* Keep DNN authentication choices visually separate from the first login field.
+   Some DNN skins float LoginTab elements without giving LoginTabGroup its own
+   height, which can make the tabs overlap the Username label. */
+body .dnnLogin .LoginTabGroup {
+    display: flow-root !important;
+    position: relative !important;
+    top: -18px !important;
+    clear: both !important;
+    margin-bottom: 1.5rem !important;
+    padding-bottom: 0.25rem !important;
+}
+
+body .dnnLogin .LoginTabGroup::after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+/* Fallback styling for DNN authentication choices. 00.00.15 also applies the
+   same states inline after rendering because DNN/theme stylesheet ordering varies. */
+body .dnnLogin .LoginTabGroup .LoginTab,
+body .dnnLogin .LoginTabGroup .LoginTabHover {
+    background: #e9ecef !important;
+    background-color: #e9ecef !important;
+    background-image: none !important;
+    color: #212529 !important;
+    border: 2px solid #6c757d !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+}
+
+body .dnnLogin .LoginTabGroup .LoginTabSelected,
+body .dnnLogin .LoginTabGroup .LoginTabSelected:hover,
+body .dnnLogin .LoginTabGroup .LoginTabSelected:focus,
+body .dnnLogin .LoginTabGroup .LoginTabSelected:active {
+    background: #343a40 !important;
+    background-color: #343a40 !important;
+    background-image: none !important;
+    color: #ffffff !important;
+    border: 2px solid #212529 !important;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.45) inset !important;
+    text-shadow: none !important;
+}
+
+body .dnnLogin .LoginTabGroup .LoginTab *,
+body .dnnLogin .LoginTabGroup .LoginTabHover *,
+body .dnnLogin .LoginTabGroup .LoginTabSelected * {
+    color: inherit !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    text-shadow: none !important;
+}
+
+
+.jacaranda2fa-login .jacaranda2fa-recovery {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(128, 128, 128, 0.35);
+}
+
+.jacaranda2fa-login .jacaranda2fa-recovery-heading {
+    margin-bottom: 0.75rem;
+    line-height: 1.5;
+}
+
+.jacaranda2fa-login .jacaranda2fa-recovery-code {
+    max-width: 18rem;
+    min-height: 44px;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 1.1rem;
+    letter-spacing: 0.08rem;
+    text-transform: uppercase;
+}
+
+.jacaranda2fa-settings .jacaranda2fa-role-list label {
+    margin-right: 1rem;
+}
+
+.jacaranda2fa-settings .jacaranda2fa-recovery-list {
+    font-size: 1.15rem;
+    line-height: 1.55;
+    user-select: all;
+}
+
+
+.jacaranda2fa-login .jacaranda2fa-help {
+    display: inline-block;
+    margin-left: 0.35rem;
+    font-size: 0.9em;
+    line-height: 1.4;
+    opacity: 0.82;
+}
+
+.jacaranda2fa-login .jacaranda2fa-trust-row {
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
+}

@@ -1,0 +1,11 @@
+﻿Jacaranda2FA 00.00.15
+
+- Adds genuine "Remember this browser for 2FA" support for 30 days.
+- A trusted browser still requires the correct DNN username/password; it only skips the email/recovery-code second-factor step.
+- Trusted-browser tokens are generated with 256 bits of cryptographic randomness. Only SHA-256 token hashes are stored in the database; the raw token exists only in the browser cookie.
+- Trusted-browser cookies are HttpOnly, use SameSite=Lax, and are marked Secure when the login request is HTTPS.
+- Trusted-browser tokens are tied to PortalID and UserID and expire after 30 days.
+- A maximum of 10 active trusted-browser tokens is retained per user.
+- Adds a settings action to revoke all trusted browsers for the signed-in account.
+- Renames the existing DNN persistence checkbox from "Remember me" to "Keep me signed in" to distinguish DNN's persistent login cookie from Jacaranda2FA trusted-browser behaviour.
+- Preserves the confirmed-working 00.00.14 role policies, email OTP flow, recovery codes, and DNN final authentication hand-off.
