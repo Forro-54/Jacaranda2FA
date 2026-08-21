@@ -1,7 +1,11 @@
-Jacaranda2FA 00.00.20
+Jacaranda2FA 00.00.26
 
-Accessibility-focused UI maintenance release.
-- Keeps the single-column settings-card layout.
-- Enlarges security setting help/range text to 18px with improved line spacing and contrast.
-- Enlarges numeric setting values to 18px while keeping compact input widths.
-- No authentication or security logic changes.
+Verification-stage retry fix.
+
+- Fixes an incorrect authenticator-app code returning the user to the initial login screen.
+- Adds a one-request server-side verification flash message and clean verification-stage redirect for retryable second-factor errors.
+- Keeps the Jacaranda2FA authentication tab selected after an incorrect authenticator, email OTP, or recovery code.
+- Preserves the active second-factor challenge and remaining-attempt count after a retryable error.
+- Applies the same clean-stage handling to resend-delay/resend-limit messages and successful email-code resend.
+- No database schema changes.
+- No changes to password validation, TOTP algorithm, recovery-code storage, trusted browsers, or site policy logic.

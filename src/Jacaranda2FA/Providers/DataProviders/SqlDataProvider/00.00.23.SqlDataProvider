@@ -1,0 +1,105 @@
+/* Jacaranda2FA 00.00.26 - TOTP authenticator storage */
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_TotpAuthenticators]') AND type = N'U')
+BEGIN
+    CREATE TABLE {databaseOwner}[{objectQualifier}Jacaranda2FA_TotpAuthenticators]
+    (
+        [PortalID] INT NOT NULL,
+        [UserID] INT NOT NULL,
+        [ProtectedSecret] NVARCHAR(1024) NOT NULL,
+        [EnrolledOnDate] DATETIME NOT NULL CONSTRAINT [DF_{objectQualifier}Jacaranda2FA_TotpAuthenticators_EnrolledOnDate] DEFAULT (GETUTCDATE()),
+        [LastAcceptedStep] BIGINT NULL,
+        CONSTRAINT [PK_{objectQualifier}Jacaranda2FA_TotpAuthenticators] PRIMARY KEY CLUSTERED ([PortalID], [UserID])
+    );
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_GetTotpAuthenticator]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_GetTotpAuthenticator]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_GetTotpAuthenticator]
+    @PortalID INT,
+    @UserID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT [ProtectedSecret], [EnrolledOnDate], [LastAcceptedStep]
+      FROM {databaseOwner}[{objectQualifier}Jacaranda2FA_TotpAuthenticators]
+     WHERE [PortalID] = @PortalID
+       AND [UserID] = @UserID;
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_SaveTotpAuthenticator]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_SaveTotpAuthenticator]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_SaveTotpAuthenticator]
+    @PortalID INT,
+    @UserID INT,
+    @ProtectedSecret NVARCHAR(1024),
+    @LastAcceptedStep BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF EXISTS (
+        SELECT 1
+          FROM {databaseOwner}[{objectQualifier}Jacaranda2FA_TotpAuthenticators]
+         WHERE [PortalID] = @PortalID
+           AND [UserID] = @UserID
+    )
+    BEGIN
+        UPDATE {databaseOwner}[{objectQualifier}Jacaranda2FA_TotpAuthenticators]
+           SET [ProtectedSecret] = @ProtectedSecret,
+               [EnrolledOnDate] = GETUTCDATE(),
+               [LastAcceptedStep] = @LastAcceptedStep
+         WHERE [PortalID] = @PortalID
+           AND [UserID] = @UserID;
+    END
+    ELSE
+    BEGIN
+        INSERT INTO {databaseOwner}[{objectQualifier}Jacaranda2FA_TotpAuthenticators]
+            ([PortalID], [UserID], [ProtectedSecret], [EnrolledOnDate], [LastAcceptedStep])
+        VALUES
+            (@PortalID, @UserID, @ProtectedSecret, GETUTCDATE(), @LastAcceptedStep);
+    END
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_DeleteTotpAuthenticator]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_DeleteTotpAuthenticator]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_DeleteTotpAuthenticator]
+    @PortalID INT,
+    @UserID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DELETE FROM {databaseOwner}[{objectQualifier}Jacaranda2FA_TotpAuthenticators]
+     WHERE [PortalID] = @PortalID
+       AND [UserID] = @UserID;
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_AcceptTotpStep]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_AcceptTotpStep]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_AcceptTotpStep]
+    @PortalID INT,
+    @UserID INT,
+    @Step BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    UPDATE {databaseOwner}[{objectQualifier}Jacaranda2FA_TotpAuthenticators]
+       SET [LastAcceptedStep] = @Step
+     WHERE [PortalID] = @PortalID
+       AND [UserID] = @UserID
+       AND ([LastAcceptedStep] IS NULL OR [LastAcceptedStep] < @Step);
+
+    SELECT @@ROWCOUNT;
+END
+GO

@@ -1,5 +1,56 @@
 # Changelog
 
+## 00.00.26
+
+- Fixed invalid TOTP attempts dropping back to the initial login screen.
+- Added verification-stage flash messages that survive DNN's authentication-provider rebuild.
+- Applied the same retry-safe behaviour to email OTP, recovery-code, and resend messages.
+- No database or cryptographic changes.
+
+## 00.00.26
+
+- Fixed the installer manifest reference to the TOTP SQL migration.
+- The package now correctly references `00.00.23.SqlDataProvider`, where TOTP database support was introduced.
+- Retains the authenticator-to-email fallback state-transition fix from the rejected 00.00.24 package.
+- No database schema or security-model changes.
+
+## 00.00.26
+
+- Fixed the authenticator-to-email fallback returning to the initial login screen.
+- Added a clean verification-stage redirect after fallback email delivery.
+- Corrected the post-redirect message when an email code is active.
+- Clears stale authenticator textbox content when switching methods.
+- No security-model or database changes.
+
+## 00.00.23
+
+- Added TOTP authenticator-app enrolment and login verification.
+- Added locally generated QR enrolment and manual Base32 setup key.
+- Added protected TOTP secret storage using ASP.NET MachineKey protection.
+- Added atomic TOTP replay protection with last-accepted time-step tracking.
+- Added authenticator-first login with email fallback.
+- Added authenticator enable/replace/remove controls to Account Security.
+- Retained email OTP, recovery codes, trusted browsers, audit logging and policy enforcement.
+
+## 00.00.22
+
+- Fixed the DNN module manifest that caused the 00.00.21 installer to be rejected.
+- Added the required `<moduleDefinitions>` container.
+- Removed the invalid `definitionName` element.
+- Added standard empty `businessControllerClass` and `supportedFeatures` elements.
+- Aligned module-control metadata and element order with DNN 10.3.2 module manifests.
+- Changed the combined manifest format to 6.0.
+- No runtime authentication/security changes.
+
+## 00.00.21
+
+- Added the Jacaranda2FA Account Security DNN module.
+- Added user self-service recovery-code generation/replacement.
+- Added user self-service trusted-browser count and revoke-all action.
+- Added user-facing 2FA policy and masked-email status.
+- Added an Authenticator App placeholder section for the next TOTP development stage.
+- No changes to the working password/email OTP/recovery/trusted-browser login flow.
+
 ## 00.00.20
 
 - Kept the proven single-column card layout for security and audit settings.

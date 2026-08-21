@@ -1,4 +1,4 @@
-/* Jacaranda2FA - DNN email two-factor authentication 00.00.20 */
+/* Jacaranda2FA - DNN email two-factor authentication 00.00.26 */
 .jacaranda2fa-login .jacaranda2fa-intro {
     margin: 0 0 1.25rem 0;
     line-height: 1.55;
@@ -139,14 +139,14 @@ body .dnnLogin .LoginTabGroup .LoginTabSelected * {
 }
 
 
-/* 00.00.20 settings spacing */
+/* 00.00.26 settings spacing */
 .jacaranda2fa-settings {
     padding-left: 10px;
     padding-right: 10px;
     box-sizing: border-box;
 }
 
-/* 00.00.20 responsive settings layout */
+/* 00.00.26 responsive settings layout */
 .jacaranda2fa-settings .jacaranda2fa-settings-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -206,3 +206,22 @@ body .dnnLogin .LoginTabGroup .LoginTabSelected * {
     font-weight: 700;
 }
 
+
+
+/* 00.00.26 authenticator/email method choice */
+.jacaranda2fa-login .jacaranda2fa-method-panel {
+    margin: 0 0 18px 0;
+    padding: 14px;
+    border: 1px solid rgba(128, 128, 128, 0.35);
+    border-radius: 6px;
+}
+
+.jacaranda2fa-login .jacaranda2fa-method-heading {
+    margin-bottom: 10px;
+    font-size: 1.02em;
+    line-height: 1.5;
+}
+
+.jacaranda2fa-login .jacaranda2fa-email-choice {
+    border-style: dashed;
+}

@@ -4,9 +4,9 @@ Jacaranda2FA is an email-based two-factor authentication provider for DNN Platfo
 
 ## Current development version
 
-**00.00.20**
+**00.00.26**
 
-### 00.00.20 changes
+### 00.00.26 changes
 
 - Reworks Security and audit settings into a responsive two-column layout on wider screens.
 - Uses compact 85px numeric fields for timeout/count values.
@@ -15,7 +15,7 @@ Jacaranda2FA is an email-based two-factor authentication provider for DNN Platfo
 - No authentication or security logic changes.
 
 - Applies 10px horizontal padding directly to the Jacaranda2FA settings wrapper so fieldset headings, wrapped help text and controls no longer sit against the DNN panel border.
-- Adds a versioned stylesheet URL (`Login.css?v=00.00.20`) to prevent stale browser/DNN CSS caching after UI upgrades.
+- Adds a versioned stylesheet URL (`Login.css?v=00.00.26`) to prevent stale browser/DNN CSS caching after UI upgrades.
 - No authentication, OTP, recovery-code, trusted-browser or security-policy logic has changed.
 
 ## Authentication boundary
@@ -38,7 +38,7 @@ From PowerShell in the repository root:
 
 The generated package is written to:
 
-`dist\Jacaranda2FA_00.00.20_Install.zip`
+`dist\Jacaranda2FA_00.00.26_Install.zip`
 
 ## Testing
 

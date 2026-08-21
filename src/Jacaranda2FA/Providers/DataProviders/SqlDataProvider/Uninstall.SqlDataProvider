@@ -1,4 +1,14 @@
-﻿IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_RevokeTrustedBrowsers]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_RevokeTrustedBrowsers]
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_AcceptTotpStep]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_AcceptTotpStep]
+GO
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_DeleteTotpAuthenticator]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_DeleteTotpAuthenticator]
+GO
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_SaveTotpAuthenticator]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_SaveTotpAuthenticator]
+GO
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_GetTotpAuthenticator]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_GetTotpAuthenticator]
+GO
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_TotpAuthenticators]', N'U') IS NOT NULL DROP TABLE {databaseOwner}[{objectQualifier}Jacaranda2FA_TotpAuthenticators]
+GO
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_RevokeTrustedBrowsers]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_RevokeTrustedBrowsers]
 GO
 IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_CountTrustedBrowsers]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_CountTrustedBrowsers]
 GO

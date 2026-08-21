@@ -1,4 +1,4 @@
-﻿/* Jacaranda2FA 00.00.14 - recovery code storage */
+/* Jacaranda2FA 00.00.14 - recovery code storage */
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes]') AND type = N'U')
 BEGIN
     CREATE TABLE {databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes]

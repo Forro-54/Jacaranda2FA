@@ -6,6 +6,7 @@
 <%@ Import Namespace="System.Security.Cryptography" %>
 <%@ Import Namespace="System.Text" %>
 <%@ Import Namespace="System.Web" %>
+<%@ Import Namespace="System.Web.Security" %>
 <%@ Import Namespace="DotNetNuke.Common.Utilities" %>
 <%@ Import Namespace="DotNetNuke.Data" %>
 <%@ Import Namespace="DotNetNuke.Entities.Host" %>
@@ -28,7 +29,7 @@
     private const int DefaultTrustedBrowserDays = 30;
     private const int DefaultMaxTrustedBrowsers = 10;
     private const string TrustedCookiePrefix = "Jacaranda2FA.Trusted.";
-    private const string Version = "00.00.20";
+    private const string Version = "00.00.26";
     private const string SettingEnabled = "Jacaranda2FA_Enabled";
     private const string SettingPolicy = "Jacaranda2FA_Policy";
     private const string SettingRoleIds = "Jacaranda2FA_RoleIds";
@@ -40,6 +41,11 @@
     private const string SettingResendWaitSeconds = "Jacaranda2FA_ResendWaitSeconds";
     private const string SettingTrustedBrowserDays = "Jacaranda2FA_TrustedBrowserDays";
     private const string SettingMaxTrustedBrowsers = "Jacaranda2FA_MaxTrustedBrowsers";
+    private const int TotpDigits = 6;
+    private const int TotpPeriodSeconds = 30;
+    private const int TotpWindowSteps = 1;
+    private const string TotpPurpose = "Jacaranda2FA.TOTP";
+
     private const string StageQueryKey = "jacaranda2fa_stage";
     private bool actionHandled;
 
@@ -115,6 +121,8 @@
         // in Request.Form but ASP.NET does not raise its Click event.
         this.cmdLogin.Click += this.Login_Click;
         this.cmdVerify.Click += this.Verify_Click;
+        this.cmdVerifyAuthenticator.Click += this.VerifyAuthenticator_Click;
+        this.cmdUseEmail.Click += this.UseEmail_Click;
         this.cmdResend.Click += this.Resend_Click;
         this.cmdRecovery.Click += this.Recovery_Click;
         this.cmdCancelVerification.Click += this.CancelVerification_Click;
@@ -130,6 +138,8 @@
             string actionClientId = HttpUtility.JavaScriptStringEncode(this.actionField.ClientID);
             this.cmdLogin.OnClientClick = "document.getElementById('" + actionClientId + "').value='login';";
             this.cmdVerify.OnClientClick = "document.getElementById('" + actionClientId + "').value='verify';";
+            this.cmdVerifyAuthenticator.OnClientClick = "document.getElementById('" + actionClientId + "').value='totp';";
+            this.cmdUseEmail.OnClientClick = "document.getElementById('" + actionClientId + "').value='email';";
             this.cmdResend.OnClientClick = "document.getElementById('" + actionClientId + "').value='resend';";
             this.cmdRecovery.OnClientClick = "document.getElementById('" + actionClientId + "').value='recovery';";
             this.cmdCancelVerification.OnClientClick = "document.getElementById('" + actionClientId + "').value='cancel';";
@@ -146,6 +156,10 @@
         this.txtCode.Attributes["inputmode"] = "numeric";
         this.txtCode.Attributes["pattern"] = "[0-9]*";
         this.txtCode.Attributes["maxlength"] = CodeDigits.ToString(CultureInfo.InvariantCulture);
+        this.txtAuthenticatorCode.Attributes["autocomplete"] = "one-time-code";
+        this.txtAuthenticatorCode.Attributes["inputmode"] = "numeric";
+        this.txtAuthenticatorCode.Attributes["pattern"] = "[0-9]*";
+        this.txtAuthenticatorCode.Attributes["maxlength"] = TotpDigits.ToString(CultureInfo.InvariantCulture);
         this.txtRecoveryCode.Attributes["autocomplete"] = "off";
         this.txtRecoveryCode.Attributes["autocapitalize"] = "characters";
         this.txtRecoveryCode.Attributes["spellcheck"] = "false";
@@ -194,7 +208,25 @@
             if (hasChallenge)
             {
                 this.LogDiagnostic("Active verification challenge restored after clean stage redirect.");
-                this.ShowMessage("Enter the six-digit verification code sent to your registered email address.", false);
+                string verificationFlash;
+                bool verificationFlashIsError;
+                if (this.TryConsumeVerificationFlash(out verificationFlash, out verificationFlashIsError))
+                {
+                    this.ShowMessage(verificationFlash, verificationFlashIsError);
+                }
+                else
+                {
+                    bool emailCodeIssued = this.GetSessionBool("EmailCodeIssued");
+                    bool authenticatorAvailable = this.GetSessionBool("HasAuthenticator");
+                    this.ShowMessage(
+                        emailCodeIssued
+                            ? "Enter the six-digit verification code sent to your registered email address."
+                            : (authenticatorAvailable
+                                ? "Enter the current six-digit code from your authenticator app, or choose email verification instead."
+                                : "Complete one of the available second-factor methods below."),
+                        false);
+                }
+
                 this.RegisterAuthenticationTabPresentationScript(true);
             }
             else
@@ -372,6 +404,12 @@
             case "verify":
                 this.Verify_Click(this.cmdVerify, EventArgs.Empty);
                 break;
+            case "totp":
+                this.VerifyAuthenticator_Click(this.cmdVerifyAuthenticator, EventArgs.Empty);
+                break;
+            case "email":
+                this.UseEmail_Click(this.cmdUseEmail, EventArgs.Empty);
+                break;
             case "resend":
                 this.Resend_Click(this.cmdResend, EventArgs.Empty);
                 break;
@@ -387,7 +425,7 @@
     private string GetSubmittedAction()
     {
         string action = Convert.ToString(this.Request.Form[this.actionField.UniqueID], CultureInfo.InvariantCulture);
-        if (action == "login" || action == "verify" || action == "resend" || action == "recovery" || action == "cancel")
+        if (action == "login" || action == "verify" || action == "totp" || action == "email" || action == "resend" || action == "recovery" || action == "cancel")
         {
             return action;
         }
@@ -399,6 +437,14 @@
         if (this.Request.Form[this.cmdVerify.UniqueID] != null)
         {
             return "verify";
+        }
+        if (this.Request.Form[this.cmdVerifyAuthenticator.UniqueID] != null)
+        {
+            return "totp";
+        }
+        if (this.Request.Form[this.cmdUseEmail.UniqueID] != null)
+        {
+            return "email";
         }
         if (this.Request.Form[this.cmdResend.UniqueID] != null)
         {
@@ -421,6 +467,14 @@
         if (string.Equals(eventTarget, this.cmdVerify.UniqueID, StringComparison.Ordinal))
         {
             return "verify";
+        }
+        if (string.Equals(eventTarget, this.cmdVerifyAuthenticator.UniqueID, StringComparison.Ordinal))
+        {
+            return "totp";
+        }
+        if (string.Equals(eventTarget, this.cmdUseEmail.UniqueID, StringComparison.Ordinal))
+        {
+            return "email";
         }
         if (string.Equals(eventTarget, this.cmdResend.UniqueID, StringComparison.Ordinal))
         {
@@ -533,7 +587,7 @@
             return;
         }
 
-        this.LogDiagnostic("DNN password validation succeeded; preparing email verification challenge.");
+        this.LogDiagnostic("DNN password validation succeeded; preparing second-factor challenge.");
         this.LogSecurityEvent("PasswordValidation", user != null ? user.UserID : Null.NullInteger, userName, "Success", "DNN password accepted.");
 
         if (user == null)
@@ -566,10 +620,14 @@
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(user.Email) || !Mail.IsValidEmailAddress(user.Email, this.PortalId))
+        bool hasAuthenticator = this.HasTotpAuthenticator(user.UserID);
+        bool hasUsableEmail = !string.IsNullOrWhiteSpace(user.Email) && Mail.IsValidEmailAddress(user.Email, this.PortalId);
+        bool hasRecovery = this.HasUnusedRecoveryCodes(user.UserID);
+
+        if (!hasAuthenticator && !hasUsableEmail && !hasRecovery)
         {
-            this.LogSecurityEvent("SecondFactorUnavailable", user.UserID, userName, "Failed", "Account has no usable registered email address.");
-            this.ShowMessage("This account does not have a usable registered email address. Email verification cannot continue.", true);
+            this.LogSecurityEvent("SecondFactorUnavailable", user.UserID, userName, "Failed", "Account has no enrolled authenticator app, usable email address or unused recovery code.");
+            this.ShowMessage("This account does not currently have a usable second-factor method. Contact the site administrator.", true);
             return;
         }
 
@@ -579,15 +637,167 @@
         this.Session[this.Key("LoginStatus")] = (int)loginStatus;
         this.Session[this.Key("RememberMe")] = rememberMe;
         this.Session[this.Key("ResendCount")] = 0;
+        this.Session[this.Key("Attempts")] = 0;
+        this.Session[this.Key("ExpiresUtcTicks")] = DateTime.UtcNow.AddMinutes(CodeLifetimeMinutes).Ticks;
+        this.Session[this.Key("HasAuthenticator")] = hasAuthenticator;
+        this.Session[this.Key("EmailCodeIssued")] = false;
 
-        if (!this.IssueCode(user, false))
+        if (hasAuthenticator)
         {
-            this.ClearChallenge();
+            this.LogSecurityEvent("TotpChallenge", user.UserID, userName, "Ready", "Authenticator app is enrolled; presenting authenticator verification with email fallback when available.");
+            this.LogDiagnostic("Authenticator app enrolled; verification challenge saved without sending email.");
+            this.RedirectToVerificationStage();
             return;
         }
 
-        this.LogDiagnostic("Verification challenge created and email accepted by DNN mail provider.");
-        this.LogDiagnostic("Verification challenge saved; redirecting to verification stage.");
+        if (hasUsableEmail)
+        {
+            if (!this.IssueCode(user, false))
+            {
+                this.ClearChallenge();
+                return;
+            }
+
+            this.LogDiagnostic("Verification challenge created and email accepted by DNN mail provider.");
+            this.LogDiagnostic("Verification challenge saved; redirecting to verification stage.");
+            this.RedirectToVerificationStage();
+            return;
+        }
+
+        this.LogSecurityEvent("RecoveryChallenge", user.UserID, userName, "Ready", "No authenticator app or usable email is available; recovery code remains available.");
+        this.RedirectToVerificationStage();
+    }
+
+    protected void VerifyAuthenticator_Click(object sender, EventArgs e)
+    {
+        if (!this.BeginAction("Verify-authenticator action received."))
+        {
+            return;
+        }
+        this.HideMessage();
+
+        if (!this.HasChallenge())
+        {
+            this.ClearChallenge();
+            this.ShowLoginPanel();
+            this.ShowMessage("Your verification session has ended. Please sign in again.", true);
+            return;
+        }
+
+        if (this.ChallengeExpired())
+        {
+            int expiredUserId = this.GetSessionInt("UserId");
+            string expiredUserName = Convert.ToString(this.Session[this.Key("UserName")], CultureInfo.InvariantCulture);
+            this.LogSecurityEvent("TotpExpired", expiredUserId, expiredUserName, "Failed", "Authenticator verification session expired.");
+            this.ClearChallenge();
+            this.ShowLoginPanel();
+            this.ShowMessage("The verification session has expired. Please sign in again.", true);
+            return;
+        }
+
+        int userId = this.GetSessionInt("UserId");
+        if (!this.HasTotpAuthenticator(userId))
+        {
+            this.RedirectToVerificationStageWithMessage(
+                "No authenticator app is enrolled for this account. Use email verification or a recovery code instead.",
+                true);
+            return;
+        }
+
+        string code = this.txtAuthenticatorCode.Text ?? string.Empty;
+        if (code.Length == 0)
+        {
+            code = Convert.ToString(this.Request.Form[this.txtAuthenticatorCode.UniqueID], CultureInfo.InvariantCulture) ?? string.Empty;
+        }
+        code = code.Trim();
+
+        if (!this.IsSixDigitCode(code))
+        {
+            this.txtAuthenticatorCode.Text = string.Empty;
+            this.RedirectToVerificationStageWithMessage(
+                "Enter the six-digit code shown in your authenticator app.",
+                true);
+            return;
+        }
+
+        long acceptedStep;
+        bool valid = this.TryValidateTotp(userId, code, true, out acceptedStep);
+        if (!valid)
+        {
+            int attempts = this.GetSessionInt("Attempts") + 1;
+            this.Session[this.Key("Attempts")] = attempts;
+            this.txtAuthenticatorCode.Text = string.Empty;
+            string failedUserName = Convert.ToString(this.Session[this.Key("UserName")], CultureInfo.InvariantCulture);
+
+            if (attempts >= MaxCodeAttempts)
+            {
+                this.LogSecurityEvent("TotpRateLimit", userId, failedUserName, "Blocked", "Maximum authenticator-code attempts reached.");
+                this.ClearChallenge();
+                this.ShowLoginPanel();
+                this.ShowMessage("Too many incorrect verification attempts. Please sign in again.", true);
+            }
+            else
+            {
+                this.LogSecurityEvent("TotpVerification", userId, failedUserName, "Failed", "Incorrect, expired or already-used authenticator code.");
+                int remaining = MaxCodeAttempts - attempts;
+                this.RedirectToVerificationStageWithMessage(
+                    "That authenticator code is not valid. " + remaining.ToString(CultureInfo.InvariantCulture) + " attempt(s) remain.",
+                    true);
+            }
+            return;
+        }
+
+        string userName = Convert.ToString(this.Session[this.Key("UserName")], CultureInfo.InvariantCulture);
+        int statusValue = this.GetSessionInt("LoginStatus");
+        bool rememberMe = this.GetSessionBool("RememberMe");
+        UserInfo user = UserController.GetUserById(this.PortalId, userId);
+        if (user == null || !string.Equals(user.Username, userName, StringComparison.OrdinalIgnoreCase))
+        {
+            this.ClearChallenge();
+            this.ShowLoginPanel();
+            this.ShowMessage("The account could not be reloaded. Please sign in again.", true);
+            return;
+        }
+
+        bool trustBrowser = this.chkTrustBrowser.Checked || this.Request.Form[this.chkTrustBrowser.UniqueID] != null;
+        this.CompleteChallengeAuthentication(user, userName, (UserLoginStatus)statusValue, rememberMe, trustBrowser, "TotpVerification", "Authenticator app verification succeeded");
+    }
+
+    protected void UseEmail_Click(object sender, EventArgs e)
+    {
+        if (!this.BeginAction("Use-email action received."))
+        {
+            return;
+        }
+        this.HideMessage();
+
+        if (!this.HasChallenge())
+        {
+            this.ClearChallenge();
+            this.ShowLoginPanel();
+            this.ShowMessage("Your verification session has ended. Please sign in again.", true);
+            return;
+        }
+
+        int userId = this.GetSessionInt("UserId");
+        UserInfo user = UserController.GetUserById(this.PortalId, userId);
+        if (user == null || string.IsNullOrWhiteSpace(user.Email) || !Mail.IsValidEmailAddress(user.Email, this.PortalId))
+        {
+            this.ShowMessage("This account does not have a usable registered email address.", true);
+            return;
+        }
+
+        if (!this.IssueCode(user, false))
+        {
+            return;
+        }
+
+        // DNN rebuilds authentication-provider controls on each request. Use the same
+        // clean verification-stage redirect as the initial password -> 2FA transition
+        // so the Jacaranda2FA tab remains selected and the email-code UI is restored
+        // from the server-side challenge on the new GET request.
+        this.txtAuthenticatorCode.Text = string.Empty;
+        this.LogDiagnostic("Email fallback selected; verification code sent and clean verification-stage redirect requested.");
         this.RedirectToVerificationStage();
     }
 
@@ -604,6 +814,14 @@
             this.ClearChallenge();
             this.ShowLoginPanel();
             this.ShowMessage("Your verification session has ended. Please sign in again.", true);
+            return;
+        }
+
+        if (!this.GetSessionBool("EmailCodeIssued"))
+        {
+            this.RedirectToVerificationStageWithMessage(
+                "Choose email verification first so Jacaranda2FA can send a code.",
+                true);
             return;
         }
 
@@ -627,7 +845,10 @@
         code = code.Trim();
         if (!this.IsSixDigitCode(code))
         {
-            this.ShowMessage("Enter the six-digit verification code.", true);
+            this.txtCode.Text = string.Empty;
+            this.RedirectToVerificationStageWithMessage(
+                "Enter the six-digit verification code.",
+                true);
             return;
         }
 
@@ -651,7 +872,9 @@
             {
                 this.LogSecurityEvent("OtpVerification", failedUserId, failedUserName, "Failed", "Incorrect verification code. Attempt " + attempts.ToString(CultureInfo.InvariantCulture) + " of " + MaxCodeAttempts.ToString(CultureInfo.InvariantCulture) + ".");
                 int remaining = MaxCodeAttempts - attempts;
-                this.ShowMessage("That verification code is not correct. " + remaining.ToString(CultureInfo.InvariantCulture) + " attempt(s) remain.", true);
+                this.RedirectToVerificationStageWithMessage(
+                    "That verification code is not correct. " + remaining.ToString(CultureInfo.InvariantCulture) + " attempt(s) remain.",
+                    true);
             }
 
             return;
@@ -673,7 +896,7 @@
 
         UserLoginStatus loginStatus = (UserLoginStatus)statusValue;
         bool trustBrowser = this.chkTrustBrowser.Checked || this.Request.Form[this.chkTrustBrowser.UniqueID] != null;
-        this.CompleteChallengeAuthentication(user, userName, loginStatus, rememberMe, trustBrowser, "Email verification succeeded");
+        this.CompleteChallengeAuthentication(user, userName, loginStatus, rememberMe, trustBrowser, "OtpVerification", "Email verification succeeded");
     }
 
     protected void Recovery_Click(object sender, EventArgs e)
@@ -714,7 +937,10 @@
 
         if (recoveryCode.Length != 12)
         {
-            this.ShowMessage("Enter a valid Jacaranda2FA recovery code.", true);
+            this.txtRecoveryCode.Text = string.Empty;
+            this.RedirectToVerificationStageWithMessage(
+                "Enter a valid Jacaranda2FA recovery code.",
+                true);
             return;
         }
 
@@ -736,7 +962,9 @@
             {
                 this.LogSecurityEvent("RecoveryCodeVerification", userId, failedRecoveryUserName, "Failed", "Invalid or already-used recovery code. Attempt " + attempts.ToString(CultureInfo.InvariantCulture) + " of " + MaxCodeAttempts.ToString(CultureInfo.InvariantCulture) + ".");
                 int remaining = MaxCodeAttempts - attempts;
-                this.ShowMessage("That recovery code is not valid or has already been used. " + remaining.ToString(CultureInfo.InvariantCulture) + " attempt(s) remain.", true);
+                this.RedirectToVerificationStageWithMessage(
+                    "That recovery code is not valid or has already been used. " + remaining.ToString(CultureInfo.InvariantCulture) + " attempt(s) remain.",
+                    true);
             }
             return;
         }
@@ -754,10 +982,10 @@
         }
 
         bool trustBrowser = this.chkTrustBrowser.Checked || this.Request.Form[this.chkTrustBrowser.UniqueID] != null;
-        this.CompleteChallengeAuthentication(user, userName, (UserLoginStatus)statusValue, rememberMe, trustBrowser, "Recovery code accepted");
+        this.CompleteChallengeAuthentication(user, userName, (UserLoginStatus)statusValue, rememberMe, trustBrowser, "RecoveryCodeVerification", "Recovery code accepted");
     }
 
-    private void CompleteChallengeAuthentication(UserInfo user, string userName, UserLoginStatus loginStatus, bool rememberMe, bool trustBrowser, string diagnostic)
+    private void CompleteChallengeAuthentication(UserInfo user, string userName, UserLoginStatus loginStatus, bool rememberMe, bool trustBrowser, string eventName, string diagnostic)
     {
         // Only a successfully completed second factor may create a trusted-browser token.
         if (trustBrowser)
@@ -769,7 +997,7 @@
         this.ClearChallenge();
         this.LogDiagnostic(diagnostic + "; handing authenticated user back to DNN.");
         this.LogSecurityEvent(
-            string.Equals(diagnostic, "Recovery code accepted", StringComparison.Ordinal) ? "RecoveryCodeVerification" : "OtpVerification",
+            eventName,
             user.UserID,
             userName,
             "Success",
@@ -796,11 +1024,21 @@
             return;
         }
 
+        if (!this.GetSessionBool("EmailCodeIssued"))
+        {
+            this.RedirectToVerificationStageWithMessage(
+                "Choose email verification first before requesting another email code.",
+                true);
+            return;
+        }
+
         int resendCount = this.GetSessionInt("ResendCount");
         if (resendCount >= MaxResends)
         {
             this.LogSecurityEvent("OtpResend", this.GetSessionInt("UserId"), Convert.ToString(this.Session[this.Key("UserName")], CultureInfo.InvariantCulture), "Blocked", "Maximum resend count reached.");
-            this.ShowMessage("The resend limit has been reached. Please sign in again to request a new code.", true);
+            this.RedirectToVerificationStageWithMessage(
+                "The resend limit has been reached. Please sign in again to request a new code.",
+                true);
             return;
         }
 
@@ -813,7 +1051,9 @@
             {
                 int seconds = Math.Max(1, ResendWaitSeconds - (int)elapsed.TotalSeconds);
                 this.LogSecurityEvent("OtpResend", this.GetSessionInt("UserId"), Convert.ToString(this.Session[this.Key("UserName")], CultureInfo.InvariantCulture), "Blocked", "Resend requested before configured delay elapsed.");
-                this.ShowMessage("Please wait " + seconds.ToString(CultureInfo.InvariantCulture) + " second(s) before requesting another code.", true);
+                this.RedirectToVerificationStageWithMessage(
+                    "Please wait " + seconds.ToString(CultureInfo.InvariantCulture) + " second(s) before requesting another code.",
+                    true);
                 return;
             }
         }
@@ -834,8 +1074,9 @@
         }
 
         this.Session[this.Key("ResendCount")] = resendCount + 1;
-        this.ShowVerificationPanel();
-        this.ShowMessage("A new verification code has been sent to " + this.MaskEmail(user.Email) + ".", false);
+        this.RedirectToVerificationStageWithMessage(
+            "A new verification code has been sent to " + this.MaskEmail(user.Email) + ".",
+            false);
     }
 
     protected void CancelVerification_Click(object sender, EventArgs e)
@@ -854,6 +1095,30 @@
     private void RedirectToVerificationStage()
     {
         this.RedirectClean(this.BuildCurrentPageUrl("verify"));
+    }
+
+    private void RedirectToVerificationStageWithMessage(string message, bool isError)
+    {
+        this.Session[this.Key("VerificationFlashMessage")] = message ?? string.Empty;
+        this.Session[this.Key("VerificationFlashIsError")] = isError;
+        this.RedirectToVerificationStage();
+    }
+
+    private bool TryConsumeVerificationFlash(out string message, out bool isError)
+    {
+        object rawMessage = this.Session[this.Key("VerificationFlashMessage")];
+        if (rawMessage == null)
+        {
+            message = string.Empty;
+            isError = false;
+            return false;
+        }
+
+        message = Convert.ToString(rawMessage, CultureInfo.InvariantCulture) ?? string.Empty;
+        isError = this.GetSessionBool("VerificationFlashIsError");
+        this.Session.Remove(this.Key("VerificationFlashMessage"));
+        this.Session.Remove(this.Key("VerificationFlashIsError"));
+        return message.Length > 0;
     }
 
     private void RedirectToLoginOptions()
@@ -937,7 +1202,7 @@
 
             if (!string.IsNullOrEmpty(error))
             {
-                Exceptions.LogException(new Exception("Jacaranda2FA 00.00.20 email delivery error: " + error));
+                Exceptions.LogException(new Exception("Jacaranda2FA 00.00.26 email delivery error: " + error));
                 this.LogSecurityEvent(resend ? "OtpResend" : "OtpSent", user.UserID, user.Username, "Failed", "DNN mail provider reported a delivery error.");
                 this.ShowMessage("DNN reported a problem sending the verification email. Check the site's SMTP configuration and Event Viewer.", true);
                 return false;
@@ -959,6 +1224,7 @@
         this.Session[this.Key("ExpiresUtcTicks")] = now.AddMinutes(CodeLifetimeMinutes).Ticks;
         this.Session[this.Key("LastSentUtcTicks")] = now.Ticks;
         this.Session[this.Key("Attempts")] = 0;
+        this.Session[this.Key("EmailCodeIssued")] = true;
 
         return true;
     }
@@ -1005,6 +1271,169 @@
 
         // "All" is the default and preserves 00.00.13 behaviour.
         return true;
+    }
+
+    private bool ChallengeExpired()
+    {
+        long expiresTicks = this.GetSessionLong("ExpiresUtcTicks");
+        return expiresTicks <= 0 || DateTime.UtcNow > new DateTime(expiresTicks, DateTimeKind.Utc);
+    }
+
+    private bool HasTotpAuthenticator(int userId)
+    {
+        if (userId <= 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            using (IDataReader reader = DataProvider.Instance().ExecuteReader("Jacaranda2FA_GetTotpAuthenticator", this.PortalId, userId))
+            {
+                return reader.Read() && !string.IsNullOrWhiteSpace(Convert.ToString(reader["ProtectedSecret"], CultureInfo.InvariantCulture));
+            }
+        }
+        catch (Exception ex)
+        {
+            Exceptions.LogException(ex);
+            this.LogSecurityEvent("TotpStorage", userId, string.Empty, "Failed", "Authenticator storage lookup failed; TOTP treated as unavailable.");
+            return false;
+        }
+    }
+
+    private bool TryValidateTotp(int userId, string code, bool consumeStep, out long acceptedStep)
+    {
+        acceptedStep = -1L;
+        byte[] secret;
+        long lastAcceptedStep;
+        if (!this.TryLoadTotpSecret(userId, out secret, out lastAcceptedStep))
+        {
+            return false;
+        }
+
+        long currentStep = this.GetCurrentTotpStep();
+        for (int offset = -TotpWindowSteps; offset <= TotpWindowSteps; offset++)
+        {
+            long step = currentStep + offset;
+            if (step < 0 || step <= lastAcceptedStep)
+            {
+                continue;
+            }
+
+            string candidate = this.ComputeTotp(secret, step);
+            if (!this.FixedTimeEquals(
+                Encoding.ASCII.GetBytes(candidate),
+                Encoding.ASCII.GetBytes(code ?? string.Empty)))
+            {
+                continue;
+            }
+
+            if (consumeStep)
+            {
+                try
+                {
+                    int accepted = DataProvider.Instance().ExecuteScalar<int>(
+                        "Jacaranda2FA_AcceptTotpStep",
+                        this.PortalId,
+                        userId,
+                        step);
+                    if (accepted != 1)
+                    {
+                        return false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Exceptions.LogException(ex);
+                    return false;
+                }
+            }
+
+            acceptedStep = step;
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool TryLoadTotpSecret(int userId, out byte[] secret, out long lastAcceptedStep)
+    {
+        secret = null;
+        lastAcceptedStep = -1L;
+
+        try
+        {
+            using (IDataReader reader = DataProvider.Instance().ExecuteReader("Jacaranda2FA_GetTotpAuthenticator", this.PortalId, userId))
+            {
+                if (!reader.Read())
+                {
+                    return false;
+                }
+
+                string protectedText = Convert.ToString(reader["ProtectedSecret"], CultureInfo.InvariantCulture);
+                if (string.IsNullOrWhiteSpace(protectedText))
+                {
+                    return false;
+                }
+
+                byte[] protectedBytes = Convert.FromBase64String(protectedText);
+                secret = MachineKey.Unprotect(
+                    protectedBytes,
+                    TotpPurpose,
+                    this.PortalId.ToString(CultureInfo.InvariantCulture),
+                    userId.ToString(CultureInfo.InvariantCulture));
+
+                if (secret == null || secret.Length == 0)
+                {
+                    return false;
+                }
+
+                if (reader["LastAcceptedStep"] != DBNull.Value)
+                {
+                    lastAcceptedStep = Convert.ToInt64(reader["LastAcceptedStep"], CultureInfo.InvariantCulture);
+                }
+
+                return true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Exceptions.LogException(ex);
+            return false;
+        }
+    }
+
+    private long GetCurrentTotpStep()
+    {
+        long unixSeconds = (long)(DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
+        return unixSeconds / TotpPeriodSeconds;
+    }
+
+    private string ComputeTotp(byte[] secret, long step)
+    {
+        byte[] counter = new byte[8];
+        ulong value = unchecked((ulong)step);
+        for (int i = 7; i >= 0; i--)
+        {
+            counter[i] = (byte)(value & 0xff);
+            value >>= 8;
+        }
+
+        byte[] hash;
+        using (HMACSHA1 hmac = new HMACSHA1(secret))
+        {
+            hash = hmac.ComputeHash(counter);
+        }
+
+        int offset = hash[hash.Length - 1] & 0x0f;
+        int binary =
+            ((hash[offset] & 0x7f) << 24) |
+            ((hash[offset + 1] & 0xff) << 16) |
+            ((hash[offset + 2] & 0xff) << 8) |
+            (hash[offset + 3] & 0xff);
+
+        int otp = binary % 1000000;
+        return otp.ToString("D6", CultureInfo.InvariantCulture);
     }
 
     private string TrustedCookieName(int userId)
@@ -1336,8 +1765,9 @@
     private bool HasChallenge()
     {
         return this.Session[this.Key("UserId")] != null &&
-               this.Session[this.Key("CodeHash")] != null &&
-               this.Session[this.Key("CodeSalt")] != null;
+               this.Session[this.Key("UserName")] != null &&
+               this.Session[this.Key("LoginStatus")] != null &&
+               this.Session[this.Key("ExpiresUtcTicks")] != null;
     }
 
     private void ClearChallenge()
@@ -1345,7 +1775,9 @@
         string[] names =
         {
             "UserId", "UserName", "LoginStatus", "RememberMe", "ResendCount",
-            "CodeSalt", "CodeHash", "ExpiresUtcTicks", "LastSentUtcTicks", "Attempts"
+            "CodeSalt", "CodeHash", "ExpiresUtcTicks", "LastSentUtcTicks", "Attempts",
+            "HasAuthenticator", "EmailCodeIssued", "VerificationFlashMessage",
+            "VerificationFlashIsError"
         };
 
         for (int i = 0; i < names.Length; i++)
@@ -1481,8 +1913,31 @@
 
         int userId = this.GetSessionInt("UserId");
         UserInfo user = userId > 0 ? UserController.GetUserById(this.PortalId, userId) : null;
-        this.litDestination.Text = HttpUtility.HtmlEncode(user != null ? this.MaskEmail(user.Email) : "the registered email address");
+        bool hasAuthenticator = this.HasTotpAuthenticator(userId);
+        bool emailIssued = this.GetSessionBool("EmailCodeIssued");
+        bool hasUsableEmail = user != null && !string.IsNullOrWhiteSpace(user.Email) && Mail.IsValidEmailAddress(user.Email, this.PortalId);
+
+        this.pnlAuthenticator.Visible = hasAuthenticator;
+        this.pnlEmailChoice.Visible = hasAuthenticator && hasUsableEmail && !emailIssued;
+        this.pnlEmailCode.Visible = emailIssued || (!hasAuthenticator && hasUsableEmail);
         this.pnlRecovery.Visible = this.HasUnusedRecoveryCodes(userId);
+
+        string maskedDestination = user != null ? this.MaskEmail(user.Email) : "the registered email address";
+        this.litDestination.Text = HttpUtility.HtmlEncode(maskedDestination);
+        this.litEmailChoiceDestination.Text = HttpUtility.HtmlEncode(maskedDestination);
+
+        if (hasAuthenticator && !emailIssued)
+        {
+            this.litVerificationIntro.Text = "Open your authenticator app and enter its six-digit code. You can choose email verification instead if needed.";
+        }
+        else if (emailIssued)
+        {
+            this.litVerificationIntro.Text = "Enter the six-digit code sent to your registered email address.";
+        }
+        else
+        {
+            this.litVerificationIntro.Text = "Complete one of the available second-factor methods below.";
+        }
     }
 
     private void ShowMessage(string message, bool isError)
@@ -1499,7 +1954,7 @@
     }
 </script>
 
-<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/AuthenticationServices/Jacaranda2FA/Login.css") %>" />
+<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/AuthenticationServices/Jacaranda2FA/Login.css?v=00.00.26") %>" />
 
 <div class="dnnForm dnnLoginService dnnClear jacaranda2fa-login">
     <asp:HiddenField ID="actionField" runat="server" />
@@ -1509,8 +1964,8 @@
 
     <asp:Panel ID="pnlLogin" runat="server">
         <div class="jacaranda2fa-intro">
-            <strong>Jacaranda2FA <span class="jacaranda2fa-version">00.00.20</span></strong><br />
-            Enter your normal DNN username and password. If the current Jacaranda2FA policy requires a second factor for your account, a six-digit code will be sent to the email address registered on your account.
+            <strong>Jacaranda2FA <span class="jacaranda2fa-version">00.00.26</span></strong><br />
+            Enter your normal DNN username and password. If the current Jacaranda2FA policy requires a second factor, an enrolled authenticator app is offered first; email verification and recovery codes remain available when configured.
         </div>
 
         <div class="dnnFormItem">
@@ -1544,27 +1999,52 @@
     <asp:Panel ID="pnlVerify" runat="server" Visible="false">
         <div class="jacaranda2fa-intro">
             <strong>Verify your sign-in</strong><br />
-            We sent a six-digit code to <strong><asp:Literal ID="litDestination" runat="server" /></strong>. The code expires after <asp:Literal ID="litCodeLifetime" runat="server" /> minute(s).
+            <asp:Literal ID="litVerificationIntro" runat="server" />
         </div>
-        <div class="dnnFormItem jacaranda2fa-code-row">
-            <div class="dnnLabel"><asp:Label ID="lblCode" runat="server" AssociatedControlID="txtCode" CssClass="dnnFormLabel" Text="Verification code" /></div>
-            <asp:TextBox ID="txtCode" runat="server" CssClass="jacaranda2fa-code" />
-        </div>
+
+        <asp:Panel ID="pnlAuthenticator" runat="server" Visible="false" CssClass="jacaranda2fa-method-panel">
+            <div class="jacaranda2fa-method-heading"><strong>Authenticator app</strong><br />Enter the current six-digit code shown in your authenticator app.</div>
+            <div class="dnnFormItem jacaranda2fa-code-row">
+                <div class="dnnLabel"><asp:Label ID="lblAuthenticatorCode" runat="server" AssociatedControlID="txtAuthenticatorCode" CssClass="dnnFormLabel" Text="Authenticator code" /></div>
+                <asp:TextBox ID="txtAuthenticatorCode" runat="server" CssClass="jacaranda2fa-code" />
+            </div>
+            <div class="dnnFormItem jacaranda2fa-actions">
+                <span class="dnnFormLabel">&nbsp;</span>
+                <asp:Button ID="cmdVerifyAuthenticator" runat="server" CssClass="dnnPrimaryAction" Text="Verify authenticator code" CausesValidation="false" UseSubmitBehavior="true" />
+            </div>
+        </asp:Panel>
+
+        <asp:Panel ID="pnlEmailChoice" runat="server" Visible="false" CssClass="jacaranda2fa-method-panel jacaranda2fa-email-choice">
+            <div class="jacaranda2fa-method-heading"><strong>Email verification</strong><br />If you prefer, Jacaranda2FA can send a six-digit code to <strong><asp:Literal ID="litEmailChoiceDestination" runat="server" /></strong>.</div>
+            <div class="dnnFormItem jacaranda2fa-actions">
+                <span class="dnnFormLabel">&nbsp;</span>
+                <asp:Button ID="cmdUseEmail" runat="server" CssClass="dnnSecondaryAction" Text="Email me a code instead" CausesValidation="false" UseSubmitBehavior="true" />
+            </div>
+        </asp:Panel>
+
+        <asp:Panel ID="pnlEmailCode" runat="server" Visible="false" CssClass="jacaranda2fa-method-panel">
+            <div class="jacaranda2fa-method-heading"><strong>Email verification</strong><br />We sent a six-digit code to <strong><asp:Literal ID="litDestination" runat="server" /></strong>. The code expires after <asp:Literal ID="litCodeLifetime" runat="server" /> minute(s).</div>
+            <div class="dnnFormItem jacaranda2fa-code-row">
+                <div class="dnnLabel"><asp:Label ID="lblCode" runat="server" AssociatedControlID="txtCode" CssClass="dnnFormLabel" Text="Email verification code" /></div>
+                <asp:TextBox ID="txtCode" runat="server" CssClass="jacaranda2fa-code" />
+            </div>
+            <div class="dnnFormItem jacaranda2fa-actions">
+                <span class="dnnFormLabel">&nbsp;</span>
+                <asp:Button ID="cmdVerify" runat="server" CssClass="dnnPrimaryAction" Text="Verify email code" CausesValidation="false" UseSubmitBehavior="true" />
+                <asp:Button ID="cmdResend" runat="server" CssClass="dnnSecondaryAction" Text="Resend email code" CausesValidation="false" UseSubmitBehavior="true" />
+            </div>
+        </asp:Panel>
+
         <div class="dnnFormItem jacaranda2fa-trust-row">
             <asp:Label ID="lblTrustBrowser" runat="server" CssClass="dnnFormLabel" Text="Remember this browser for 2FA" />
-            <span><asp:CheckBox ID="chkTrustBrowser" runat="server" /> <span class="jacaranda2fa-help">Skip the email/recovery-code step on this browser for <asp:Literal ID="litTrustedDays" runat="server" /> day(s) after your password is accepted.</span></span>
+            <span><asp:CheckBox ID="chkTrustBrowser" runat="server" /> <span class="jacaranda2fa-help">Skip the authenticator/email/recovery-code step on this browser for <asp:Literal ID="litTrustedDays" runat="server" /> day(s) after your password is accepted.</span></span>
         </div>
         <div class="dnnFormItem jacaranda2fa-actions">
             <span class="dnnFormLabel">&nbsp;</span>
-            <asp:Button ID="cmdVerify" runat="server" CssClass="dnnPrimaryAction" Text="Verify code" CausesValidation="false" UseSubmitBehavior="true" />
             <asp:Button ID="cmdCancelVerification" runat="server" CssClass="dnnSecondaryAction" Text="Cancel 2FA / Return to login options" CausesValidation="false" UseSubmitBehavior="true" />
         </div>
-        <div class="dnnFormItem jacaranda2fa-resend-row">
-            <span class="dnnFormLabel">&nbsp;</span>
-            <asp:Button ID="cmdResend" runat="server" CssClass="dnnSecondaryAction" Text="Resend code" CausesValidation="false" UseSubmitBehavior="true" />
-        </div>
         <asp:Panel ID="pnlRecovery" runat="server" Visible="false" CssClass="jacaranda2fa-recovery">
-            <div class="jacaranda2fa-recovery-heading"><strong>Recovery code</strong><br />If you cannot access the email code, you may use one unused Jacaranda2FA recovery code for this account.</div>
+            <div class="jacaranda2fa-recovery-heading"><strong>Recovery code</strong><br />If you cannot use the authenticator app or email verification, you may use one unused Jacaranda2FA recovery code for this account.</div>
             <div class="dnnFormItem">
                 <div class="dnnLabel"><asp:Label ID="lblRecoveryCode" runat="server" AssociatedControlID="txtRecoveryCode" CssClass="dnnFormLabel" Text="Recovery code" /></div>
                 <asp:TextBox ID="txtRecoveryCode" runat="server" CssClass="jacaranda2fa-recovery-code" />

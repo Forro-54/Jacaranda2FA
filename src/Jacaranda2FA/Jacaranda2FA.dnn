@@ -1,8 +1,8 @@
-<dotnetnuke type="Package" version="5.0">
+<dotnetnuke type="Package" version="6.0">
   <packages>
-    <package name="ForrestITServices.Jacaranda2FA" type="Auth_System" version="00.00.20">
+    <package name="ForrestITServices.Jacaranda2FA" type="Auth_System" version="00.00.26">
       <friendlyName>Jacaranda2FA</friendlyName>
-      <description>Jacaranda2FA 00.00.20 authentication provider for DNN Platform 10.3.2. Adds a small settings-panel spacing improvement while retaining configurable second-factor policy, security audit logging, OTP/trusted-browser/recovery-code controls, one-time recovery codes, and trusted-browser support.</description>
+      <description>Jacaranda2FA 00.00.26 authentication provider for DNN Platform 10.3.2. Provides TOTP authenticator apps, email verification, one-time recovery codes, trusted browsers, role-based enforcement, security audit logging and configurable security controls.</description>
       <owner>
         <name>Trevor Forrester</name>
         <organization>Forrest IT Services</organization>
@@ -24,6 +24,11 @@
               <name>00.00.16.SqlDataProvider</name>
               <version>00.00.16</version>
             </script>
+            <script type="Install">
+              <path>Providers\DataProviders\SqlDataProvider</path>
+              <name>00.00.23.SqlDataProvider</name>
+              <version>00.00.23</version>
+            </script>
             <script type="UnInstall">
               <path>Providers\DataProviders\SqlDataProvider</path>
               <name>Uninstall.SqlDataProvider</name>
@@ -41,7 +46,7 @@
         </component>
         <component type="File">
           <files>
-            <basePath>DesktopModules/AuthenticationServices/Jacaranda2FA</basePath>
+            <basePath>DesktopModules\AuthenticationServices\Jacaranda2FA</basePath>
             <file><name>Login.ascx</name></file>
             <file><name>Login.css</name></file>
             <file><name>Settings.ascx</name></file>
@@ -50,8 +55,66 @@
             <file><name>license.txt</name></file>
             <file><name>releasenotes.txt</name></file>
             <file><name>README-TESTING.txt</name></file>
-            <file><path>Providers/DataProviders/SqlDataProvider</path><name>00.00.16.SqlDataProvider</name></file>
-            <file><path>Providers/DataProviders/SqlDataProvider</path><name>Uninstall.SqlDataProvider</name></file>
+            <file><path>Providers\DataProviders\SqlDataProvider</path><name>00.00.16.SqlDataProvider</name></file>
+            <file><path>Providers\DataProviders\SqlDataProvider</path><name>00.00.23.SqlDataProvider</name></file>
+            <file><path>Providers\DataProviders\SqlDataProvider</path><name>Uninstall.SqlDataProvider</name></file>
+          </files>
+        </component>
+      </components>
+    </package>
+
+    <package name="ForrestITServices.Jacaranda2FA.AccountSecurity" type="Module" version="00.00.26">
+      <friendlyName>Jacaranda2FA Account Security</friendlyName>
+      <description>User-facing Jacaranda2FA Account Security module for enrolling TOTP authenticator apps and managing email verification, recovery codes and trusted browsers.</description>
+      <owner>
+        <name>Trevor Forrester</name>
+        <organization>Forrest IT Services</organization>
+        <url>https://forrestitservices.org</url>
+        <email>webmaster@forrestitservices.org</email>
+      </owner>
+      <license src="license.txt" />
+      <releaseNotes src="releasenotes.txt" />
+      <azureCompatible>true</azureCompatible>
+      <dependencies>
+        <dependency type="CoreVersion">10.03.02</dependency>
+      </dependencies>
+      <components>
+        <component type="Module">
+          <desktopModule>
+            <moduleName>Jacaranda2FA Account Security</moduleName>
+            <foldername>Jacaranda2FA</foldername>
+            <businessControllerClass />
+            <supportedFeatures />
+            <isPremium>false</isPremium>
+            <isAdmin>false</isAdmin>
+            <moduleDefinitions>
+              <moduleDefinition>
+                <friendlyName>Jacaranda2FA Account Security</friendlyName>
+                <defaultCacheTime>0</defaultCacheTime>
+                <moduleControls>
+                  <moduleControl>
+                    <controlKey />
+                    <controlSrc>DesktopModules/Jacaranda2FA/AccountSecurity.ascx</controlSrc>
+                    <supportsPopUps>true</supportsPopUps>
+                    <supportsPartialRendering>false</supportsPartialRendering>
+                    <controlTitle>Jacaranda2FA Account Security</controlTitle>
+                    <controlType>View</controlType>
+                    <iconFile />
+                    <helpUrl />
+                    <viewOrder>0</viewOrder>
+                  </moduleControl>
+                </moduleControls>
+              </moduleDefinition>
+            </moduleDefinitions>
+          </desktopModule>
+        </component>
+        <component type="File">
+          <files>
+            <basePath>DesktopModules\Jacaranda2FA</basePath>
+            <file><name>AccountSecurity.ascx</name></file>
+            <file><name>AccountSecurity.css</name></file>
+            <file><name>qrcode-local.js</name></file>
+            <file><name>THIRD-PARTY-NOTICES.txt</name></file>
           </files>
         </component>
       </components>
