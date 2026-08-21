@@ -29,7 +29,7 @@
     private const int DefaultTrustedBrowserDays = 30;
     private const int DefaultMaxTrustedBrowsers = 10;
     private const string TrustedCookiePrefix = "Jacaranda2FA.Trusted.";
-    private const string Version = "00.00.27";
+    private const string Version = "00.00.28";
     private const string SettingEnabled = "Jacaranda2FA_Enabled";
     private const string SettingPolicy = "Jacaranda2FA_Policy";
     private const string SettingRoleIds = "Jacaranda2FA_RoleIds";
@@ -1262,7 +1262,7 @@
 
             if (!string.IsNullOrEmpty(error))
             {
-                Exceptions.LogException(new Exception("Jacaranda2FA 00.00.27 email delivery error: " + error));
+                Exceptions.LogException(new Exception("Jacaranda2FA 00.00.28 email delivery error: " + error));
                 this.LogSecurityEvent(resend ? "OtpResend" : "OtpSent", user.UserID, user.Username, "Failed", "DNN mail provider reported a delivery error.");
                 this.ShowMessage("DNN reported a problem sending the verification email. Check the site's SMTP configuration and Event Viewer.", true);
                 return false;
@@ -2096,7 +2096,7 @@
     }
 </script>
 
-<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/AuthenticationServices/Jacaranda2FA/Login.css?v=00.00.27") %>" />
+<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/AuthenticationServices/Jacaranda2FA/Login.css?v=00.00.28") %>" />
 
 <div class="dnnForm dnnLoginService dnnClear jacaranda2fa-login">
     <asp:HiddenField ID="actionField" runat="server" />
@@ -2106,7 +2106,7 @@
 
     <asp:Panel ID="pnlLogin" runat="server">
         <div class="jacaranda2fa-intro">
-            <strong>Jacaranda2FA <span class="jacaranda2fa-version">00.00.27</span></strong><br />
+            <strong>Jacaranda2FA <span class="jacaranda2fa-version">00.00.28</span></strong><br />
             Enter your normal DNN username and password. If the current Jacaranda2FA policy requires a second factor, an enrolled authenticator app is offered first; email verification and recovery codes remain available when configured.
         </div>
 
@@ -2118,9 +2118,12 @@
             <div class="dnnLabel"><asp:Label ID="lblPassword" runat="server" AssociatedControlID="txtPassword" CssClass="dnnFormLabel" Text="Password" /></div>
             <asp:TextBox ID="txtPassword" runat="server" TextMode="Password" />
         </div>
-        <div class="dnnFormItem">
-            <asp:Label ID="lblRemember" runat="server" CssClass="dnnFormLabel" Text="Keep me signed in" />
-            <span class="dnnLoginRememberMe"><asp:CheckBox ID="chkRemember" runat="server" /> <span class="jacaranda2fa-help">DNN persistent sign-in. This is separate from trusting a browser for 2FA.</span></span>
+        <div class="dnnFormItem jacaranda2fa-checkbox-row jacaranda2fa-remember-row">
+            <div class="jacaranda2fa-checkbox-line">
+                <asp:CheckBox ID="chkRemember" runat="server" CssClass="jacaranda2fa-checkbox-input" />
+                <asp:Label ID="lblRemember" runat="server" AssociatedControlID="chkRemember" CssClass="jacaranda2fa-checkbox-label" Text="Keep me signed in" />
+            </div>
+            <div class="jacaranda2fa-checkbox-help">DNN persistent sign-in. This is separate from trusting a browser for 2FA.</div>
         </div>
         <div class="dnnFormItem jacaranda2fa-actions">
             <span class="dnnFormLabel">&nbsp;</span>
@@ -2177,9 +2180,12 @@
             </div>
         </asp:Panel>
 
-        <div class="dnnFormItem jacaranda2fa-trust-row">
-            <asp:Label ID="lblTrustBrowser" runat="server" CssClass="dnnFormLabel" Text="Remember this browser for 2FA" />
-            <span><asp:CheckBox ID="chkTrustBrowser" runat="server" /> <span class="jacaranda2fa-help">Skip the authenticator/email/recovery-code step on this browser for <asp:Literal ID="litTrustedDays" runat="server" /> day(s) after your password is accepted.</span></span>
+        <div class="dnnFormItem jacaranda2fa-trust-row jacaranda2fa-checkbox-row">
+            <div class="jacaranda2fa-checkbox-line">
+                <asp:CheckBox ID="chkTrustBrowser" runat="server" CssClass="jacaranda2fa-checkbox-input" />
+                <asp:Label ID="lblTrustBrowser" runat="server" AssociatedControlID="chkTrustBrowser" CssClass="jacaranda2fa-checkbox-label" Text="Remember this browser for 2FA" />
+            </div>
+            <div class="jacaranda2fa-checkbox-help">Skip the authenticator/email/recovery-code step on this browser for <asp:Literal ID="litTrustedDays" runat="server" /> day(s) after your password is accepted.</div>
         </div>
         <div class="dnnFormItem jacaranda2fa-actions">
             <span class="dnnFormLabel">&nbsp;</span>

@@ -1,77 +1,42 @@
-Jacaranda2FA 00.00.27 TESTING
+Jacaranda2FA 00.00.28 TESTING
+===============================
 
-IMPORTANT
-- Test on a non-production DNN 10.3.2 site first.
-- Keep a separate logged-in SuperUser session open while testing the upgrade.
-- 00.00.26 is the confirmed-working rollback baseline.
+Purpose
+-------
+00.00.28 is a UI-only login-form alignment/accessibility cleanup based on the confirmed-working 00.00.27 security-hardening release.
 
-1. UPGRADE / DATABASE
-- Install 00.00.27 over 00.00.26 without uninstalling 00.00.26.
-- EXPECTED: DNN installs 00.00.27.SqlDataProvider successfully.
-- EXPECTED: existing authenticator, recovery-code and trusted-browser data remains intact.
+Upgrade test
+------------
+- Install 00.00.28 over 00.00.27 without uninstalling 00.00.27.
+- EXPECTED: no new SQL migration is required.
+- EXPECTED: Jacaranda2FA remains enabled and existing authenticator, recovery-code and trusted-browser data remain intact.
 
-2. NORMAL AUTHENTICATOR LOGIN
-- Sign in with a user that has a TOTP authenticator enrolled.
-- Enter the correct DNN password and current authenticator code.
-- EXPECTED: login succeeds normally.
+Login-page visual tests
+-----------------------
+1. Initial Jacaranda2FA login screen:
+   - “Keep me signed in” checkbox is visible.
+   - Checkbox sits immediately to the left of the label text.
+   - Label text is vertically aligned with the checkbox.
+   - Explanatory text sits below the checkbox/label line.
 
-3. EMAIL FALLBACK / EXPIRY
-- Start a TOTP login and choose email fallback.
-- EXPECTED: email code is sent and the verification stage remains active.
-- Resend within the configured delay; EXPECTED: delay warning.
-- Confirm the original password-valid challenge is not extended by fallback/resend.
-- After the challenge expires, try email fallback/resend.
-- EXPECTED: Jacaranda2FA requires a fresh password login instead of issuing a renewed challenge.
+2. 2FA verification screen:
+   - “Remember this browser for 2FA” checkbox is visible.
+   - Checkbox sits immediately to the left of the label text.
+   - Label text is vertically aligned with the checkbox.
+   - Explanatory text sits below the checkbox/label line.
 
-4. PERSISTENT CROSS-CHALLENGE THROTTLE
-- Use a test account and enter valid-format but incorrect second-factor codes.
-- The existing per-challenge limit should still end each challenge as configured.
-- Continue with fresh password-valid challenges until ten total failed second-factor verifications occur within 15 minutes.
-- EXPECTED: Jacaranda2FA blocks further second-factor challenges for approximately 15 minutes.
-- EXPECTED: the block remains when a new browser session/login challenge is started.
-- After a successful second factor (before reaching the block), EXPECTED: the persistent failure record is cleared.
+3. Repeat the visual checks at desktop and narrow/mobile widths.
 
-5. ACCOUNT SECURITY REAUTHENTICATION
-- Open the Jacaranda2FA Account Security module as a normal registered user and as a SuperUser.
-- Without confirming the current password, try to:
-  * set up/replace an authenticator,
-  * remove an authenticator,
-  * generate/replace recovery codes.
-- EXPECTED: each sensitive action is refused and asks for security confirmation.
-- Enter the current DNN password in Security confirmation.
-- EXPECTED: sensitive changes are unlocked for 10 minutes.
-- EXPECTED: the password field is cleared and the password is not displayed/stored by the module.
+Functional regression
+---------------------
+- Normal password + authenticator login succeeds.
+- Email fallback succeeds.
+- Recovery-code login succeeds.
+- “Keep me signed in” still controls DNN persistent sign-in.
+- “Remember this browser for 2FA” still creates a trusted-browser record only after successful 2FA and only over HTTPS.
+- Existing trusted-browser revocation continues to work.
+- Jacaranda2FA still works with DNN Normal authentication disabled.
 
-6. AUTHENTICATOR ENROLMENT
-- After security confirmation, start authenticator setup.
-- EXPECTED: QR/manual key appears and setup works as before.
-- Confirm with the current six-digit app code.
-- EXPECTED: authenticator is saved and login works.
-
-7. LAST-FACTOR PROTECTION
-- On a policy-covered test account, arrange for the authenticator to be the only usable second-factor method.
-- Try to remove it.
-- EXPECTED: removal is refused until a usable registered email or recovery code exists.
-
-8. RECOVERY-CODE REPLACEMENT
-- Confirm security, then generate a new recovery-code set.
-- EXPECTED: the new set is shown once and replaces the old set atomically.
-- Confirm an old code no longer works and a new code works once.
-- Also test recovery-code generation from the authentication-provider Settings page; EXPECTED: current DNN password is required.
-
-9. TRUSTED BROWSERS / HTTPS
-- On HTTPS, complete a second factor and choose Remember this browser for 2FA.
-- EXPECTED: trusted-browser login continues to work.
-- EXPECTED: cookie is HttpOnly, SameSite=Lax and Secure.
-- On plain HTTP (test only), EXPECTED: login can complete but a trusted-browser token is not issued.
-- Revoke trusted browsers and confirm the browser must perform 2FA again.
-
-10. REGRESSION
-- SuperUser authenticator login.
-- Registered-user authenticator login.
-- Email OTP success and retry handling.
-- Recovery-code success and one-time consumption.
-- Trusted-browser creation, use and revocation.
-- Role/administrator/all-user policy behaviour.
-- Jacaranda2FA as sole authentication provider with DNN Normal disabled.
-- Invalid TOTP/email/recovery code remains on verification stage until limits are reached.
+Rollback
+--------
+00.00.27 is the confirmed-working rollback baseline if an unexpected DNN/theme rendering problem appears.

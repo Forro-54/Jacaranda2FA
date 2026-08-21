@@ -1,4 +1,4 @@
-/* Jacaranda2FA - DNN email two-factor authentication 00.00.27 */
+/* Jacaranda2FA - DNN two-factor authentication 00.00.28 */
 .jacaranda2fa-login .jacaranda2fa-intro {
     margin: 0 0 1.25rem 0;
     line-height: 1.55;
@@ -225,3 +225,87 @@ body .dnnLogin .LoginTabGroup .LoginTabSelected * {
 .jacaranda2fa-login .jacaranda2fa-email-choice {
     border-style: dashed;
 }
+
+/* 00.00.28 checkbox alignment/accessibility cleanup
+   DNN/skin form rules can otherwise make checkbox inputs inherit full-width
+   textbox sizing or float the label away from the control. */
+.jacaranda2fa-login .jacaranda2fa-checkbox-row {
+    clear: both;
+    display: block;
+    margin-top: 0.8rem;
+    margin-bottom: 0.9rem;
+}
+
+.jacaranda2fa-login .jacaranda2fa-checkbox-line {
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: nowrap;
+    gap: 0.65rem;
+    width: 100%;
+    min-height: 28px;
+}
+
+.jacaranda2fa-login .jacaranda2fa-checkbox-input {
+    display: inline-flex !important;
+    align-items: center !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    float: none !important;
+}
+
+.jacaranda2fa-login .jacaranda2fa-checkbox-input input[type="checkbox"],
+.jacaranda2fa-login input[type="checkbox"].jacaranda2fa-checkbox-input {
+    display: block !important;
+    position: static !important;
+    float: none !important;
+    width: 20px !important;
+    min-width: 20px !important;
+    max-width: 20px !important;
+    height: 20px !important;
+    min-height: 20px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    vertical-align: middle !important;
+    box-sizing: border-box !important;
+    cursor: pointer;
+}
+
+.jacaranda2fa-login .jacaranda2fa-checkbox-label {
+    display: inline-block !important;
+    position: static !important;
+    float: none !important;
+    width: auto !important;
+    max-width: calc(100% - 32px);
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1.35;
+    font-weight: 600;
+    text-align: left !important;
+    cursor: pointer;
+}
+
+.jacaranda2fa-login .jacaranda2fa-checkbox-help {
+    display: block;
+    margin: 0.3rem 0 0 1.85rem;
+    max-width: calc(100% - 1.85rem);
+    font-size: 0.9em;
+    line-height: 1.4;
+    opacity: 0.82;
+}
+
+@media (max-width: 480px) {
+    .jacaranda2fa-login .jacaranda2fa-checkbox-line {
+        gap: 0.55rem;
+    }
+
+    .jacaranda2fa-login .jacaranda2fa-checkbox-help {
+        margin-left: 1.75rem;
+        max-width: calc(100% - 1.75rem);
+    }
+}
+

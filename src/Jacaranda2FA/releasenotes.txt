@@ -1,18 +1,12 @@
-Jacaranda2FA 00.00.27
+Jacaranda2FA 00.00.28
 
-Security-hardening release based on the 00.00.26 source audit.
+Login-form alignment and accessibility cleanup release based on the confirmed-working 00.00.27 security-hardened baseline.
 
-- Adds persistent cross-challenge second-factor throttling. Ten failed TOTP/email/recovery verifications within a 15-minute window trigger a 15-minute cooldown, preventing fresh login challenges from resetting the effective guessing budget.
-- Keeps the existing per-challenge verification-attempt limit as the first line of defence.
-- Clears the persistent failure throttle after a successful second factor.
-- Prevents expired password-valid challenges from being renewed through email fallback or email resend.
-- Email fallback/resend no longer extends the original first-factor challenge or resets failed-attempt counts.
-- Adds recent password reauthentication before Account Security can set up/replace/remove an authenticator app or generate/replace recovery codes. Confirmation lasts 10 minutes and the password is not stored.
-- Prevents a policy-covered user from removing an authenticator app when it is the last usable second-factor method.
-- Protects temporary TOTP enrolment secrets in Session with ASP.NET MachineKey protection.
-- Adds explicit no-store/no-cache response handling while TOTP enrolment secrets or newly generated recovery codes are displayed.
-- Replaces recovery-code sets transactionally so a failed database write does not deliberately delete the old set first.
-- Trusted-browser cookies are now issued only on HTTPS requests and always carry the Secure flag. Expiry cookies are also Secure.
-- Generalises the settings warning: any alternate authentication provider that completes login outside Jacaranda2FA can bypass Jacaranda2FA enforcement.
-- Adds 00.00.27.SqlDataProvider for persistent second-factor throttling and transactional recovery-code replacement.
-- No changes to DNN password hashing/validation, the TOTP algorithm, TOTP database secret protection, trusted-browser token entropy/hashing, role-policy evaluation, or final DNN authentication hand-off.
+- Reworks the “Keep me signed in” row so the checkbox is clearly visible and aligned directly beside its label.
+- Reworks the “Remember this browser for 2FA” row so the checkbox is clearly visible and aligned directly beside its label.
+- Adds explicit checkbox sizing and layout overrides so DNN/theme textbox rules cannot stretch, float or separate these checkbox controls from their text.
+- Makes both labels explicitly associated with their checkbox controls, improving click/tap targeting and accessibility.
+- Aligns the explanatory help text beneath each checkbox/label pair instead of allowing it to compete with DNN form-label floats.
+- Includes a small-screen layout adjustment for the same rows.
+- No authentication-flow, password-validation, TOTP, email OTP, recovery-code, trusted-browser security, throttling, database-schema, policy, or cryptographic changes.
+- No new SQL migration. The existing 00.00.27 security-hardening database migration remains the current schema level.

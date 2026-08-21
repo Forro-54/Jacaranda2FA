@@ -4,20 +4,17 @@ Jacaranda2FA is a two-factor authentication provider for **DNN Platform 10.3.2**
 
 ## Current development version
 
-**00.00.27**
+**00.00.28**
 
-### 00.00.27 security hardening
+### 00.00.28 login-form alignment cleanup
 
-- Adds persistent cross-challenge second-factor throttling: 10 failed second-factor verifications within 15 minutes trigger a 15-minute cooldown.
-- Prevents email fallback/resend from renewing an expired password-valid challenge or resetting failed-attempt counts.
-- Requires recent current-password confirmation before sensitive Account Security changes.
-- Protects temporary TOTP enrolment secrets in Session with ASP.NET MachineKey.
-- Adds explicit no-store handling while TOTP enrolment secrets or fresh recovery codes are displayed.
-- Replaces recovery-code sets transactionally.
-- Requires HTTPS before creating trusted-browser tokens and forces Secure cookies.
-- Prevents removal of the last usable second factor for a policy-covered account.
-- Generalises the warning about alternate authentication providers bypassing Jacaranda2FA enforcement.
-- Adds `00.00.27.SqlDataProvider` for the new throttle and transactional recovery replacement.
+- Aligns the “Keep me signed in” checkbox directly with its label.
+- Aligns the “Remember this browser for 2FA” checkbox directly with its label.
+- Adds explicit checkbox dimensions and flex-row layout so DNN/theme input rules cannot make these controls difficult to see or separate them from their text.
+- Associates each label with its checkbox for a larger click/tap target and better accessibility.
+- Places explanatory help text cleanly beneath each checkbox row.
+- Includes narrow-screen/mobile handling.
+- Contains no authentication, cryptographic, policy, trusted-browser, database-schema or security-model changes from 00.00.27.
 
 ## Authentication boundary
 
@@ -34,10 +31,10 @@ A valid trusted-browser token is evaluated only **after** DNN has accepted the n
 
 The release install package is:
 
-`Jacaranda2FA_00.00.27_Install.zip`
+`Jacaranda2FA_00.00.28_Install.zip`
 
-Install 00.00.27 as an upgrade over 00.00.26. Do not uninstall the working 00.00.26 package first.
+Install 00.00.28 as an upgrade over 00.00.27. Do not uninstall the working 00.00.27 package first.
 
 ## Testing
 
-Use a **DNN 10.3.2 test site first** and keep a separate logged-in SuperUser session open during the initial upgrade test. Version 00.00.26 remains the confirmed-working rollback baseline until 00.00.27 completes regression testing.
+Use a **DNN 10.3.2 test site first** and keep a separate logged-in SuperUser session open during the initial upgrade test. Version 00.00.27 is the confirmed-working rollback baseline while 00.00.28 completes UI regression testing.

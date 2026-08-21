@@ -1,5 +1,17 @@
 # Changelog
 
+## 00.00.28
+
+- UI-only login-form alignment and accessibility cleanup based on the confirmed-working 00.00.27 security-hardened baseline.
+- Reworked “Keep me signed in” so its checkbox sits visibly and directly beside its label.
+- Reworked “Remember this browser for 2FA” the same way on the verification screen.
+- Added explicit 20px checkbox dimensions, flex alignment and theme/DNN float/width overrides.
+- Associated both text labels with their checkbox controls to improve click/tap targeting.
+- Moved explanatory help text beneath each checkbox/label pair with consistent indentation.
+- Added narrow-screen handling.
+- No authentication, security-model, cryptographic, database-schema or policy changes.
+- No new SQL migration.
+
 ## 00.00.27
 
 - Security-hardening release based on the 00.00.26 source audit.
