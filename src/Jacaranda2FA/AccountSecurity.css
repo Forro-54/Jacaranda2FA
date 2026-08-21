@@ -1,4 +1,4 @@
-/* Jacaranda2FA Account Security module 00.00.26 */
+/* Jacaranda2FA Account Security module 00.00.27 */
 
 .jacaranda2fa-account-security {
     box-sizing: border-box;
@@ -182,7 +182,7 @@
 }
 
 
-/* 00.00.26 authenticator-app enrolment */
+/* 00.00.27 authenticator-app enrolment */
 .jacaranda2fa-authenticator-setup {
     margin-top: 18px;
     padding: 18px;
@@ -279,4 +279,17 @@
         display: block;
         margin-bottom: 8px;
     }
+}
+
+
+/* 00.00.27 security-confirmation hardening */
+.jacaranda2fa-security-confirmation {
+    border-left: 4px solid rgba(0, 128, 0, 0.65);
+}
+
+.jacaranda2fa-security-password {
+    width: 100% !important;
+    max-width: 360px !important;
+    min-height: 44px;
+    font-size: 18px !important;
 }

@@ -1,5 +1,20 @@
 # Changelog
 
+## 00.00.27
+
+- Security-hardening release based on the 00.00.26 source audit.
+- Added persistent cross-challenge second-factor throttling: ten failed TOTP/email/recovery verifications within 15 minutes trigger a 15-minute cooldown.
+- Prevented email fallback/resend from extending an expired password-valid challenge or resetting the verification-attempt counter.
+- Added recent current-password confirmation for authenticator setup/replacement/removal and recovery-code replacement in Account Security.
+- Protected temporary TOTP enrolment secrets in Session with ASP.NET MachineKey protection.
+- Added explicit no-store/no-cache handling for TOTP enrolment material and newly displayed recovery codes.
+- Added transactional recovery-code set replacement.
+- Trusted-browser tokens are now created only over HTTPS and all trusted-browser cookies are Secure.
+- Prevented policy-covered users from removing their final usable second-factor method.
+- Generalised the enforcement warning to all alternate DNN authentication providers.
+- Added `00.00.27.SqlDataProvider` and matching uninstall cleanup.
+- No changes to DNN password validation, TOTP algorithm, stored TOTP secret protection, trusted-token entropy/hashing, role-policy evaluation, or final DNN login hand-off.
+
 ## 00.00.26
 
 - Fixed invalid TOTP attempts dropping back to the initial login screen.
@@ -7,14 +22,14 @@
 - Applied the same retry-safe behaviour to email OTP, recovery-code, and resend messages.
 - No database or cryptographic changes.
 
-## 00.00.26
+## 00.00.25
 
 - Fixed the installer manifest reference to the TOTP SQL migration.
 - The package now correctly references `00.00.23.SqlDataProvider`, where TOTP database support was introduced.
 - Retains the authenticator-to-email fallback state-transition fix from the rejected 00.00.24 package.
 - No database schema or security-model changes.
 
-## 00.00.26
+## 00.00.24
 
 - Fixed the authenticator-to-email fallback returning to the initial login screen.
 - Added a clean verification-stage redirect after fallback email delivery.

@@ -29,7 +29,7 @@
     private const int DefaultTrustedBrowserDays = 30;
     private const int DefaultMaxTrustedBrowsers = 10;
     private const string TrustedCookiePrefix = "Jacaranda2FA.Trusted.";
-    private const string Version = "00.00.26";
+    private const string Version = "00.00.27";
     private const string SettingEnabled = "Jacaranda2FA_Enabled";
     private const string SettingPolicy = "Jacaranda2FA_Policy";
     private const string SettingRoleIds = "Jacaranda2FA_RoleIds";
@@ -45,6 +45,9 @@
     private const int TotpPeriodSeconds = 30;
     private const int TotpWindowSteps = 1;
     private const string TotpPurpose = "Jacaranda2FA.TOTP";
+    private const int PersistentSecondFactorMaxFailures = 10;
+    private const int PersistentSecondFactorWindowMinutes = 15;
+    private const int PersistentSecondFactorBlockMinutes = 15;
 
     private const string StageQueryKey = "jacaranda2fa_stage";
     private bool actionHandled;
@@ -620,6 +623,15 @@
             return;
         }
 
+        int persistentBlockSeconds = this.GetSecondFactorBlockSeconds(user.UserID);
+        if (persistentBlockSeconds > 0)
+        {
+            this.ClearChallenge();
+            this.LogSecurityEvent("SecondFactorThrottle", user.UserID, userName, "Blocked", "Persistent second-factor throttle is active after repeated failed verification attempts.");
+            this.ShowMessage("Too many incorrect second-factor attempts have been recorded for this account. Please try again in " + this.FormatRetryWait(persistentBlockSeconds) + ".", true);
+            return;
+        }
+
         bool hasAuthenticator = this.HasTotpAuthenticator(user.UserID);
         bool hasUsableEmail = !string.IsNullOrWhiteSpace(user.Email) && Mail.IsValidEmailAddress(user.Email, this.PortalId);
         bool hasRecovery = this.HasUnusedRecoveryCodes(user.UserID);
@@ -728,8 +740,16 @@
             this.Session[this.Key("Attempts")] = attempts;
             this.txtAuthenticatorCode.Text = string.Empty;
             string failedUserName = Convert.ToString(this.Session[this.Key("UserName")], CultureInfo.InvariantCulture);
+            int persistentBlockSeconds = this.RecordSecondFactorFailure(userId);
 
-            if (attempts >= MaxCodeAttempts)
+            if (persistentBlockSeconds > 0)
+            {
+                this.LogSecurityEvent("TotpRateLimit", userId, failedUserName, "Blocked", "Persistent cross-challenge second-factor throttle activated.");
+                this.ClearChallenge();
+                this.ShowLoginPanel();
+                this.ShowMessage("Too many incorrect second-factor attempts. Please try again in " + this.FormatRetryWait(persistentBlockSeconds) + ".", true);
+            }
+            else if (attempts >= MaxCodeAttempts)
             {
                 this.LogSecurityEvent("TotpRateLimit", userId, failedUserName, "Blocked", "Maximum authenticator-code attempts reached.");
                 this.ClearChallenge();
@@ -776,6 +796,17 @@
             this.ClearChallenge();
             this.ShowLoginPanel();
             this.ShowMessage("Your verification session has ended. Please sign in again.", true);
+            return;
+        }
+
+        if (this.ChallengeExpired())
+        {
+            int expiredUserId = this.GetSessionInt("UserId");
+            string expiredUserName = Convert.ToString(this.Session[this.Key("UserName")], CultureInfo.InvariantCulture);
+            this.LogSecurityEvent("ChallengeExpired", expiredUserId, expiredUserName, "Failed", "Expired password-valid second-factor challenge cannot be renewed.");
+            this.ClearChallenge();
+            this.ShowLoginPanel();
+            this.ShowMessage("The verification session has expired. Please sign in again.", true);
             return;
         }
 
@@ -861,7 +892,15 @@
 
             int failedUserId = this.GetSessionInt("UserId");
             string failedUserName = Convert.ToString(this.Session[this.Key("UserName")], CultureInfo.InvariantCulture);
-            if (attempts >= MaxCodeAttempts)
+            int persistentBlockSeconds = this.RecordSecondFactorFailure(failedUserId);
+            if (persistentBlockSeconds > 0)
+            {
+                this.LogSecurityEvent("OtpRateLimit", failedUserId, failedUserName, "Blocked", "Persistent cross-challenge second-factor throttle activated.");
+                this.ClearChallenge();
+                this.ShowLoginPanel();
+                this.ShowMessage("Too many incorrect second-factor attempts. Please try again in " + this.FormatRetryWait(persistentBlockSeconds) + ".", true);
+            }
+            else if (attempts >= MaxCodeAttempts)
             {
                 this.LogSecurityEvent("OtpRateLimit", failedUserId, failedUserName, "Blocked", "Maximum verification attempts reached.");
                 this.ClearChallenge();
@@ -951,7 +990,15 @@
             this.txtRecoveryCode.Text = string.Empty;
 
             string failedRecoveryUserName = Convert.ToString(this.Session[this.Key("UserName")], CultureInfo.InvariantCulture);
-            if (attempts >= MaxCodeAttempts)
+            int persistentBlockSeconds = this.RecordSecondFactorFailure(userId);
+            if (persistentBlockSeconds > 0)
+            {
+                this.LogSecurityEvent("RecoveryCodeRateLimit", userId, failedRecoveryUserName, "Blocked", "Persistent cross-challenge second-factor throttle activated.");
+                this.ClearChallenge();
+                this.ShowLoginPanel();
+                this.ShowMessage("Too many incorrect second-factor attempts. Please try again in " + this.FormatRetryWait(persistentBlockSeconds) + ".", true);
+            }
+            else if (attempts >= MaxCodeAttempts)
             {
                 this.LogSecurityEvent("RecoveryCodeRateLimit", userId, failedRecoveryUserName, "Blocked", "Maximum verification attempts reached.");
                 this.ClearChallenge();
@@ -987,6 +1034,8 @@
 
     private void CompleteChallengeAuthentication(UserInfo user, string userName, UserLoginStatus loginStatus, bool rememberMe, bool trustBrowser, string eventName, string diagnostic)
     {
+        this.ClearSecondFactorThrottle(user.UserID);
+
         // Only a successfully completed second factor may create a trusted-browser token.
         if (trustBrowser)
         {
@@ -1021,6 +1070,17 @@
             this.ClearChallenge();
             this.ShowLoginPanel();
             this.ShowMessage("Your verification session has ended. Please sign in again.", true);
+            return;
+        }
+
+        if (this.ChallengeExpired())
+        {
+            int expiredUserId = this.GetSessionInt("UserId");
+            string expiredUserName = Convert.ToString(this.Session[this.Key("UserName")], CultureInfo.InvariantCulture);
+            this.LogSecurityEvent("ChallengeExpired", expiredUserId, expiredUserName, "Failed", "Expired password-valid second-factor challenge cannot be renewed.");
+            this.ClearChallenge();
+            this.ShowLoginPanel();
+            this.ShowMessage("The verification session has expired. Please sign in again.", true);
             return;
         }
 
@@ -1202,7 +1262,7 @@
 
             if (!string.IsNullOrEmpty(error))
             {
-                Exceptions.LogException(new Exception("Jacaranda2FA 00.00.26 email delivery error: " + error));
+                Exceptions.LogException(new Exception("Jacaranda2FA 00.00.27 email delivery error: " + error));
                 this.LogSecurityEvent(resend ? "OtpResend" : "OtpSent", user.UserID, user.Username, "Failed", "DNN mail provider reported a delivery error.");
                 this.ShowMessage("DNN reported a problem sending the verification email. Check the site's SMTP configuration and Event Viewer.", true);
                 return false;
@@ -1221,9 +1281,9 @@
         // Replace the active challenge only after DNN's mail provider accepts the send.
         this.Session[this.Key("CodeSalt")] = Convert.ToBase64String(salt);
         this.Session[this.Key("CodeHash")] = Convert.ToBase64String(hash);
-        this.Session[this.Key("ExpiresUtcTicks")] = now.AddMinutes(CodeLifetimeMinutes).Ticks;
+        // Do not extend the password-valid challenge or reset failed-attempt counts when
+        // switching to email or resending a code. The original first-factor expiry remains authoritative.
         this.Session[this.Key("LastSentUtcTicks")] = now.Ticks;
-        this.Session[this.Key("Attempts")] = 0;
         this.Session[this.Key("EmailCodeIssued")] = true;
 
         return true;
@@ -1436,6 +1496,80 @@
         return otp.ToString("D6", CultureInfo.InvariantCulture);
     }
 
+    private int GetSecondFactorBlockSeconds(int userId)
+    {
+        if (userId <= 0)
+        {
+            return 0;
+        }
+
+        try
+        {
+            return Math.Max(0, DataProvider.Instance().ExecuteScalar<int>(
+                "Jacaranda2FA_GetSecondFactorBlockSeconds",
+                this.PortalId,
+                userId));
+        }
+        catch (Exception ex)
+        {
+            Exceptions.LogException(ex);
+            this.LogDiagnostic("Persistent second-factor throttle could not be read; per-challenge controls remain active.");
+            return 0;
+        }
+    }
+
+    private int RecordSecondFactorFailure(int userId)
+    {
+        if (userId <= 0)
+        {
+            return 0;
+        }
+
+        try
+        {
+            return Math.Max(0, DataProvider.Instance().ExecuteScalar<int>(
+                "Jacaranda2FA_RecordSecondFactorFailure",
+                this.PortalId,
+                userId,
+                PersistentSecondFactorMaxFailures,
+                PersistentSecondFactorWindowMinutes,
+                PersistentSecondFactorBlockMinutes));
+        }
+        catch (Exception ex)
+        {
+            Exceptions.LogException(ex);
+            this.LogDiagnostic("Persistent second-factor failure could not be recorded; per-challenge controls remain active.");
+            return 0;
+        }
+    }
+
+    private void ClearSecondFactorThrottle(int userId)
+    {
+        if (userId <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            DataProvider.Instance().ExecuteNonQuery(
+                "Jacaranda2FA_ClearSecondFactorThrottle",
+                this.PortalId,
+                userId);
+        }
+        catch (Exception ex)
+        {
+            Exceptions.LogException(ex);
+            this.LogDiagnostic("Successful second factor could not clear the persistent throttle record.");
+        }
+    }
+
+    private string FormatRetryWait(int seconds)
+    {
+        int minutes = Math.Max(1, (int)Math.Ceiling(seconds / 60.0));
+        return minutes.ToString(CultureInfo.InvariantCulture) + " minute(s)";
+    }
+
     private string TrustedCookieName(int userId)
     {
         return TrustedCookiePrefix +
@@ -1501,6 +1635,14 @@
             return false;
         }
 
+        if (this.Request == null || !this.Request.IsSecureConnection)
+        {
+            UserInfo insecureUser = UserController.GetUserById(this.PortalId, userId);
+            this.LogSecurityEvent("TrustedBrowserCreated", userId, insecureUser != null ? insecureUser.Username : string.Empty, "Blocked", "Trusted-browser token was not issued because the request was not HTTPS.");
+            this.LogDiagnostic("Trusted-browser token not issued because the current request is not HTTPS.");
+            return false;
+        }
+
         try
         {
             string token = this.GenerateTrustedToken();
@@ -1517,7 +1659,7 @@
 
             HttpCookie cookie = new HttpCookie(this.TrustedCookieName(userId), token);
             cookie.HttpOnly = true;
-            cookie.Secure = this.Request != null && this.Request.IsSecureConnection;
+            cookie.Secure = true;
             cookie.Path = this.TrustedCookiePath();
             cookie.Expires = expiresUtc.ToLocalTime();
             cookie.SameSite = SameSiteMode.Lax;
@@ -1548,7 +1690,7 @@
 
         HttpCookie cookie = new HttpCookie(this.TrustedCookieName(userId), string.Empty);
         cookie.HttpOnly = true;
-        cookie.Secure = this.Request != null && this.Request.IsSecureConnection;
+        cookie.Secure = true;
         cookie.Path = this.TrustedCookiePath();
         cookie.Expires = DateTime.Now.AddDays(-1);
         cookie.SameSite = SameSiteMode.Lax;
@@ -1954,7 +2096,7 @@
     }
 </script>
 
-<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/AuthenticationServices/Jacaranda2FA/Login.css?v=00.00.26") %>" />
+<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/AuthenticationServices/Jacaranda2FA/Login.css?v=00.00.27") %>" />
 
 <div class="dnnForm dnnLoginService dnnClear jacaranda2fa-login">
     <asp:HiddenField ID="actionField" runat="server" />
@@ -1964,7 +2106,7 @@
 
     <asp:Panel ID="pnlLogin" runat="server">
         <div class="jacaranda2fa-intro">
-            <strong>Jacaranda2FA <span class="jacaranda2fa-version">00.00.26</span></strong><br />
+            <strong>Jacaranda2FA <span class="jacaranda2fa-version">00.00.27</span></strong><br />
             Enter your normal DNN username and password. If the current Jacaranda2FA policy requires a second factor, an enrolled authenticator app is offered first; email verification and recovery codes remain available when configured.
         </div>
 

@@ -1,47 +1,43 @@
 # Jacaranda2FA
 
-Jacaranda2FA is an email-based two-factor authentication provider for DNN Platform 10.3.2. It keeps DNN responsible for password validation and final authentication, then adds policy-controlled email OTP verification, recovery codes and trusted-browser support.
+Jacaranda2FA is a two-factor authentication provider for **DNN Platform 10.3.2**. DNN remains responsible for normal username/password validation and final authentication. Where policy requires a second factor, Jacaranda2FA verifies a TOTP authenticator code, email OTP or one-time recovery code, with optional trusted-browser support.
 
 ## Current development version
 
-**00.00.26**
+**00.00.27**
 
-### 00.00.26 changes
+### 00.00.27 security hardening
 
-- Reworks Security and audit settings into a responsive two-column layout on wider screens.
-- Uses compact 85px numeric fields for timeout/count values.
-- Collapses to a single column below 900px for smaller screens.
-- Retains 10px settings-panel padding and versioned CSS cache-busting.
-- No authentication or security logic changes.
-
-- Applies 10px horizontal padding directly to the Jacaranda2FA settings wrapper so fieldset headings, wrapped help text and controls no longer sit against the DNN panel border.
-- Adds a versioned stylesheet URL (`Login.css?v=00.00.26`) to prevent stale browser/DNN CSS caching after UI upgrades.
-- No authentication, OTP, recovery-code, trusted-browser or security-policy logic has changed.
+- Adds persistent cross-challenge second-factor throttling: 10 failed second-factor verifications within 15 minutes trigger a 15-minute cooldown.
+- Prevents email fallback/resend from renewing an expired password-valid challenge or resetting failed-attempt counts.
+- Requires recent current-password confirmation before sensitive Account Security changes.
+- Protects temporary TOTP enrolment secrets in Session with ASP.NET MachineKey.
+- Adds explicit no-store handling while TOTP enrolment secrets or fresh recovery codes are displayed.
+- Replaces recovery-code sets transactionally.
+- Requires HTTPS before creating trusted-browser tokens and forces Secure cookies.
+- Prevents removal of the last usable second factor for a policy-covered account.
+- Generalises the warning about alternate authentication providers bypassing Jacaranda2FA enforcement.
+- Adds `00.00.27.SqlDataProvider` for the new throttle and transactional recovery replacement.
 
 ## Authentication boundary
 
-Jacaranda2FA does not create DNN authentication cookies itself. DNN validates the normal username/password first. When the account requires a second factor, Jacaranda2FA completes OTP/recovery/trusted-browser checks before raising DNN's normal successful authentication event.
+Jacaranda2FA does **not** create DNN authentication cookies itself. DNN validates the normal username/password first. When the account requires a second factor, Jacaranda2FA completes verification before raising DNN's normal successful authentication event.
+
+A valid trusted-browser token is evaluated only **after** DNN has accepted the normal password.
 
 ## Repository layout
 
-- `src/Jacaranda2FA/` — DNN authentication provider source/package files.
-- `build/Build-Install.ps1` — builds the DNN install ZIP.
-- `dist/` — generated install packages (ignored by Git).
+- `src/Jacaranda2FA/` — DNN authentication-provider and Account Security module source/package files.
+- `src/Jacaranda2FA/README-TESTING.txt` — release-specific regression and security test plan.
 
-## Build
+## Install package
 
-From PowerShell in the repository root:
+The release install package is:
 
-```powershell
-.\build\Build-Install.ps1
-```
+`Jacaranda2FA_00.00.27_Install.zip`
 
-The generated package is written to:
-
-`dist\Jacaranda2FA_00.00.26_Install.zip`
+Install 00.00.27 as an upgrade over 00.00.26. Do not uninstall the working 00.00.26 package first.
 
 ## Testing
 
-See `src/Jacaranda2FA/README-TESTING.txt`.
-
-Use a DNN 10.3.2 test site first and keep the standard DNN login provider available until Jacaranda2FA has been verified end-to-end.
+Use a **DNN 10.3.2 test site first** and keep a separate logged-in SuperUser session open during the initial upgrade test. Version 00.00.26 remains the confirmed-working rollback baseline until 00.00.27 completes regression testing.

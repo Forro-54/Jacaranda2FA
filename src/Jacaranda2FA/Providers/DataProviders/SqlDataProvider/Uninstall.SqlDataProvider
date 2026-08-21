@@ -1,3 +1,13 @@
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_ReplaceRecoveryCodes]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_ReplaceRecoveryCodes]
+GO
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_ClearSecondFactorThrottle]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_ClearSecondFactorThrottle]
+GO
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_RecordSecondFactorFailure]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_RecordSecondFactorFailure]
+GO
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_GetSecondFactorBlockSeconds]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_GetSecondFactorBlockSeconds]
+GO
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_SecondFactorThrottle]', N'U') IS NOT NULL DROP TABLE {databaseOwner}[{objectQualifier}Jacaranda2FA_SecondFactorThrottle]
+GO
 IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_AcceptTotpStep]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_AcceptTotpStep]
 GO
 IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_DeleteTotpAuthenticator]', N'P') IS NOT NULL DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_DeleteTotpAuthenticator]

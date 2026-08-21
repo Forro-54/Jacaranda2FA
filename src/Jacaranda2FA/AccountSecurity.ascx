@@ -12,11 +12,13 @@
 <%@ Import Namespace="DotNetNuke.Entities.Portals" %>
 <%@ Import Namespace="DotNetNuke.Entities.Users" %>
 <%@ Import Namespace="DotNetNuke.Security.Roles" %>
+<%@ Import Namespace="DotNetNuke.Security.Membership" %>
+<%@ Import Namespace="DotNetNuke.Services.Mail" %>
 <%@ Import Namespace="DotNetNuke.Services.Exceptions" %>
 <%@ Import Namespace="DotNetNuke.Services.Log.EventLog" %>
 
 <script runat="server">
-    private const string Version = "00.00.26";
+    private const string Version = "00.00.27";
     private const string SettingEnabled = "Jacaranda2FA_Enabled";
     private const string SettingPolicy = "Jacaranda2FA_Policy";
     private const string SettingRoleIds = "Jacaranda2FA_RoleIds";
@@ -31,6 +33,8 @@
     private const int TotpWindowSteps = 1;
     private const int EnrollmentMinutes = 10;
     private const string TotpPurpose = "Jacaranda2FA.TOTP";
+    private const string TotpEnrollmentPurpose = "Jacaranda2FA.TOTP.Enrollment";
+    private const int SecurityConfirmationMinutes = 10;
 
     private string EnrollmentPrefix
     {
@@ -57,7 +61,9 @@
         this.cmdConfirmAuthenticator.Click += this.ConfirmAuthenticator_Click;
         this.cmdCancelAuthenticator.Click += this.CancelAuthenticator_Click;
         this.cmdDisableAuthenticator.Click += this.DisableAuthenticator_Click;
+        this.cmdConfirmSecurity.Click += this.ConfirmSecurity_Click;
 
+        this.txtSecurityPassword.Attributes["autocomplete"] = "current-password";
         this.txtAuthenticatorConfirm.Attributes["autocomplete"] = "one-time-code";
         this.txtAuthenticatorConfirm.Attributes["inputmode"] = "numeric";
         this.txtAuthenticatorConfirm.Attributes["pattern"] = "[0-9]*";
@@ -76,7 +82,7 @@
         UserInfo currentUser = UserController.Instance.GetCurrentUserInfo();
         if (currentUser != null && currentUser.UserID > 0 && this.HasActiveEnrollment(currentUser.UserID))
         {
-            string secret = Convert.ToString(this.Session[this.EnrollmentKey("Secret")], CultureInfo.InvariantCulture);
+            string secret = this.RestoreEnrollmentSecret(currentUser.UserID);
             if (!string.IsNullOrWhiteSpace(secret))
             {
                 this.ShowAuthenticatorEnrollment(currentUser, secret);
@@ -130,6 +136,7 @@
             ? "<span class=\"jacaranda2fa-method-state state-warning\">Unavailable</span><span>No registered email address is available for email verification.</span>"
             : "<span class=\"jacaranda2fa-method-state state-ready\">Available</span><span>Verification codes can be sent to " + HttpUtility.HtmlEncode(this.MaskEmail(currentUser.Email)) + ".</span>";
 
+        this.RefreshSecurityConfirmationStatus(currentUser);
         this.RefreshAuthenticatorStatus(currentUser);
         this.RefreshRecoveryStatus();
         this.RefreshTrustedBrowserStatus();
@@ -176,6 +183,154 @@
         }
 
         return true;
+    }
+
+    private string SecurityConfirmationKey(int userId)
+    {
+        return "Jacaranda2FA:SecurityConfirmed:" + this.PortalId.ToString(CultureInfo.InvariantCulture) + ":" + userId.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private void ConfirmSecurity_Click(object sender, EventArgs e)
+    {
+        this.HideMessages();
+        UserInfo currentUser = UserController.Instance.GetCurrentUserInfo();
+        if (currentUser == null || currentUser.UserID <= 0)
+        {
+            this.ShowMessage("You must be signed in to confirm your security settings.", true);
+            return;
+        }
+
+        string password = this.txtSecurityPassword.Text ?? string.Empty;
+        this.txtSecurityPassword.Text = string.Empty;
+        if (password.Length == 0)
+        {
+            this.ShowMessage("Enter your current DNN password to confirm sensitive security changes.", true);
+            return;
+        }
+
+        UserLoginStatus status = UserLoginStatus.LOGIN_FAILURE;
+        UserInfo validated = null;
+        try
+        {
+            validated = UserController.ValidateUser(this.PortalId, currentUser.Username, password, "DNN", string.Empty, this.PortalSettings.PortalName, this.Request != null ? this.Request.UserHostAddress : string.Empty, ref status);
+        }
+        finally
+        {
+            password = string.Empty;
+        }
+
+        if (validated == null || validated.UserID != currentUser.UserID || (status != UserLoginStatus.LOGIN_SUCCESS && status != UserLoginStatus.LOGIN_SUPERUSER))
+        {
+            this.Session.Remove(this.SecurityConfirmationKey(currentUser.UserID));
+            this.ShowMessage("The current password was not accepted. Security changes remain locked.", true);
+            this.LogSecurityEvent("SecurityReauthentication", currentUser, "Failed", "Current password confirmation failed.");
+            this.RefreshSecurityConfirmationStatus(currentUser);
+            return;
+        }
+
+        this.Session[this.SecurityConfirmationKey(currentUser.UserID)] = DateTime.UtcNow.AddMinutes(SecurityConfirmationMinutes).Ticks;
+        this.ShowMessage("Security changes are unlocked for the next " + SecurityConfirmationMinutes.ToString(CultureInfo.InvariantCulture) + " minutes.", false);
+        this.LogSecurityEvent("SecurityReauthentication", currentUser, "Success", "Current password confirmed for sensitive Account Security changes.");
+        this.RefreshSecurityConfirmationStatus(currentUser);
+    }
+
+    private bool IsSecurityConfirmed(int userId)
+    {
+        if (userId <= 0) return false;
+        object value = this.Session[this.SecurityConfirmationKey(userId)];
+        if (value == null) return false;
+        long ticks;
+        if (!long.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.Integer, CultureInfo.InvariantCulture, out ticks) || ticks <= 0)
+        {
+            this.Session.Remove(this.SecurityConfirmationKey(userId));
+            return false;
+        }
+        if (DateTime.UtcNow > new DateTime(ticks, DateTimeKind.Utc))
+        {
+            this.Session.Remove(this.SecurityConfirmationKey(userId));
+            return false;
+        }
+        return true;
+    }
+
+    private bool RequireRecentSecurityConfirmation(UserInfo currentUser, string action)
+    {
+        if (currentUser != null && this.IsSecurityConfirmed(currentUser.UserID)) return true;
+        this.ShowMessage("Confirm your current DNN password in the Security confirmation section before you " + action + ".", true);
+        if (currentUser != null) this.RefreshSecurityConfirmationStatus(currentUser);
+        return false;
+    }
+
+    private void RefreshSecurityConfirmationStatus(UserInfo currentUser)
+    {
+        if (currentUser == null || currentUser.UserID <= 0)
+        {
+            this.litSecurityConfirmationStatus.Text = string.Empty;
+            return;
+        }
+        this.litSecurityConfirmationStatus.Text = this.IsSecurityConfirmed(currentUser.UserID)
+            ? "<span class=\"jacaranda2fa-method-state state-ready\">Confirmed</span><span>Sensitive security changes are temporarily unlocked.</span>"
+            : "<span class=\"jacaranda2fa-method-state state-warning\">Locked</span><span>Confirm your current password before changing authentication methods or recovery codes.</span>";
+    }
+
+    private bool HasAlternateSecondFactor(UserInfo currentUser)
+    {
+        if (currentUser == null || currentUser.UserID <= 0) return false;
+        if (!string.IsNullOrWhiteSpace(currentUser.Email) && Mail.IsValidEmailAddress(currentUser.Email, this.PortalId)) return true;
+        try
+        {
+            return DataProvider.Instance().ExecuteScalar<int>("Jacaranda2FA_CountRecoveryCodes", this.PortalId, currentUser.UserID) > 0;
+        }
+        catch (Exception ex)
+        {
+            Exceptions.LogException(ex);
+            return false;
+        }
+    }
+
+    private string ProtectEnrollmentSecret(byte[] secret, int userId)
+    {
+        byte[] protectedSecret = MachineKey.Protect(secret, TotpEnrollmentPurpose, this.PortalId.ToString(CultureInfo.InvariantCulture), userId.ToString(CultureInfo.InvariantCulture), this.ModuleId.ToString(CultureInfo.InvariantCulture));
+        if (protectedSecret == null || protectedSecret.Length == 0) throw new InvalidOperationException("MachineKey.Protect returned no protected enrollment secret.");
+        return Convert.ToBase64String(protectedSecret);
+    }
+
+    private string RestoreEnrollmentSecret(int userId)
+    {
+        string protectedText = Convert.ToString(this.Session[this.EnrollmentKey("ProtectedSecret")], CultureInfo.InvariantCulture);
+        if (string.IsNullOrWhiteSpace(protectedText)) return string.Empty;
+        try
+        {
+            byte[] secret = MachineKey.Unprotect(Convert.FromBase64String(protectedText), TotpEnrollmentPurpose, this.PortalId.ToString(CultureInfo.InvariantCulture), userId.ToString(CultureInfo.InvariantCulture), this.ModuleId.ToString(CultureInfo.InvariantCulture));
+            return secret == null || secret.Length == 0 ? string.Empty : this.Base32Encode(secret);
+        }
+        catch (Exception ex)
+        {
+            Exceptions.LogException(ex);
+            return string.Empty;
+        }
+    }
+
+    private void SetSensitiveResponseNoStore()
+    {
+        if (this.Response == null) return;
+        this.Response.Cache.SetCacheability(HttpCacheability.NoCache);
+        this.Response.Cache.SetNoStore();
+        this.Response.Cache.SetExpires(DateTime.UtcNow.AddYears(-1));
+        this.Response.Cache.AppendCacheExtension("must-revalidate, proxy-revalidate");
+    }
+
+    private string BuildRecoveryCodesXml(IList<string> hashes, IList<string> salts)
+    {
+        if (hashes == null || salts == null || hashes.Count == 0 || hashes.Count != salts.Count) throw new InvalidOperationException("Recovery-code replacement requires matching hash and salt values.");
+        StringBuilder xml = new StringBuilder();
+        xml.Append("<codes>");
+        for (int i = 0; i < hashes.Count; i++)
+        {
+            xml.Append("<c h=\""); xml.Append(HttpUtility.HtmlAttributeEncode(hashes[i])); xml.Append("\" s=\""); xml.Append(HttpUtility.HtmlAttributeEncode(salts[i])); xml.Append("\" />");
+        }
+        xml.Append("</codes>");
+        return xml.ToString();
     }
 
     private void RefreshAuthenticatorStatus(UserInfo currentUser)
@@ -259,6 +414,11 @@
             return;
         }
 
+        if (!this.RequireRecentSecurityConfirmation(currentUser, "set up or replace an authenticator app"))
+        {
+            return;
+        }
+
         byte[] secretBytes = new byte[TotpSecretBytes];
         using (RandomNumberGenerator rng = RandomNumberGenerator.Create())
         {
@@ -267,7 +427,7 @@
 
         string secret = this.Base32Encode(secretBytes);
         this.Session[this.EnrollmentKey("UserId")] = currentUser.UserID;
-        this.Session[this.EnrollmentKey("Secret")] = secret;
+        this.Session[this.EnrollmentKey("ProtectedSecret")] = this.ProtectEnrollmentSecret(secretBytes, currentUser.UserID);
         this.Session[this.EnrollmentKey("StartedUtcTicks")] = DateTime.UtcNow.Ticks;
 
         this.ShowAuthenticatorEnrollment(currentUser, secret);
@@ -288,7 +448,19 @@
             return;
         }
 
-        string secretText = Convert.ToString(this.Session[this.EnrollmentKey("Secret")], CultureInfo.InvariantCulture);
+        if (!this.RequireRecentSecurityConfirmation(currentUser, "confirm an authenticator app"))
+        {
+            this.ClearEnrollment();
+            return;
+        }
+
+        string secretText = this.RestoreEnrollmentSecret(currentUser.UserID);
+        if (string.IsNullOrWhiteSpace(secretText))
+        {
+            this.ClearEnrollment();
+            this.ShowMessage("The authenticator setup secret could not be restored. Start the setup again.", true);
+            return;
+        }
         string code = (this.txtAuthenticatorConfirm.Text ?? string.Empty).Trim();
         if (!this.IsSixDigitCode(code))
         {
@@ -378,6 +550,17 @@
             return;
         }
 
+        if (!this.RequireRecentSecurityConfirmation(currentUser, "remove an authenticator app"))
+        {
+            return;
+        }
+
+        if (this.ShouldRequireTwoFactor(currentUser) && !this.HasAlternateSecondFactor(currentUser))
+        {
+            this.ShowMessage("This authenticator app is currently your last usable second-factor method. Create recovery codes or add a usable registered email address before removing it.", true);
+            return;
+        }
+
         try
         {
             DataProvider.Instance().ExecuteNonQuery(
@@ -399,6 +582,7 @@
 
     private void ShowAuthenticatorEnrollment(UserInfo currentUser, string secret)
     {
+        this.SetSensitiveResponseNoStore();
         if (currentUser == null || string.IsNullOrWhiteSpace(secret))
         {
             return;
@@ -442,7 +626,7 @@
         }
 
         object storedUser = this.Session[this.EnrollmentKey("UserId")];
-        object secret = this.Session[this.EnrollmentKey("Secret")];
+        object secret = this.Session[this.EnrollmentKey("ProtectedSecret")];
         object started = this.Session[this.EnrollmentKey("StartedUtcTicks")];
         if (storedUser == null || secret == null || started == null)
         {
@@ -469,7 +653,8 @@
     private void ClearEnrollment()
     {
         this.Session.Remove(this.EnrollmentKey("UserId"));
-        this.Session.Remove(this.EnrollmentKey("Secret"));
+        this.Session.Remove(this.EnrollmentKey("Secret")); // pre-00.00.27 cleanup
+        this.Session.Remove(this.EnrollmentKey("ProtectedSecret"));
         this.Session.Remove(this.EnrollmentKey("StartedUtcTicks"));
     }
 
@@ -734,6 +919,11 @@
             return;
         }
 
+        if (!this.RequireRecentSecurityConfirmation(currentUser, "generate or replace recovery codes"))
+        {
+            return;
+        }
+
         int recoveryCodeCount = this.GetRecoveryCodeCount();
         List<string> plainCodes = new List<string>();
         List<string> hashes = new List<string>();
@@ -757,20 +947,12 @@
         try
         {
             DataProvider.Instance().ExecuteNonQuery(
-                "Jacaranda2FA_DeleteRecoveryCodes",
+                "Jacaranda2FA_ReplaceRecoveryCodes",
                 this.PortalId,
-                currentUser.UserID);
+                currentUser.UserID,
+                this.BuildRecoveryCodesXml(hashes, salts));
 
-            for (int i = 0; i < plainCodes.Count; i++)
-            {
-                DataProvider.Instance().ExecuteNonQuery(
-                    "Jacaranda2FA_AddRecoveryCode",
-                    this.PortalId,
-                    currentUser.UserID,
-                    hashes[i],
-                    salts[i]);
-            }
-
+            this.SetSensitiveResponseNoStore();
             StringBuilder output = new StringBuilder();
             output.Append("<div class=\"jacaranda2fa-important\"><strong>Save these codes now.</strong> They are shown only this time. Generating another set invalidates this set.</div>");
             output.Append("<pre class=\"jacaranda2fa-recovery-list\">");
@@ -896,7 +1078,7 @@
 
         HttpCookie cookie = new HttpCookie(cookieName, string.Empty);
         cookie.HttpOnly = true;
-        cookie.Secure = this.Request != null && this.Request.IsSecureConnection;
+        cookie.Secure = true;
         cookie.Path = string.IsNullOrEmpty(DotNetNuke.Common.Globals.ApplicationPath)
             ? "/"
             : DotNetNuke.Common.Globals.ApplicationPath;
@@ -983,8 +1165,8 @@
     }
 </script>
 
-<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/Jacaranda2FA/AccountSecurity.css?v=00.00.26") %>" />
-<script type="text/javascript" src="<%= ResolveUrl("~/DesktopModules/Jacaranda2FA/qrcode-local.js?v=00.00.26") %>"></script>
+<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/Jacaranda2FA/AccountSecurity.css?v=00.00.27") %>" />
+<script type="text/javascript" src="<%= ResolveUrl("~/DesktopModules/Jacaranda2FA/qrcode-local.js?v=00.00.27") %>"></script>
 
 <div class="jacaranda2fa-account-security">
     <asp:Panel ID="pnlSignedOut" runat="server" Visible="false" CssClass="dnnFormMessage dnnFormInfo">
@@ -997,12 +1179,23 @@
                 <h2>Two-Factor Authentication</h2>
                 <p>Manage the additional security methods attached to your DNN account.</p>
             </div>
-            <div class="jacaranda2fa-version">Jacaranda2FA 00.00.26</div>
+            <div class="jacaranda2fa-version">Jacaranda2FA 00.00.27</div>
         </header>
 
         <asp:Panel ID="pnlMessage" runat="server" Visible="false">
             <asp:Literal ID="litMessage" runat="server" />
         </asp:Panel>
+
+        <section class="jacaranda2fa-security-card jacaranda2fa-security-confirmation">
+            <h3>Security confirmation</h3>
+            <div class="jacaranda2fa-method-row"><asp:Literal ID="litSecurityConfirmationStatus" runat="server" /></div>
+            <p class="jacaranda2fa-help-large">For your protection, confirm your current DNN password before replacing or removing an authenticator app or generating a new recovery-code set. Confirmation remains valid for 10 minutes and the password is not stored.</p>
+            <div class="jacaranda2fa-confirm-row">
+                <asp:Label ID="lblSecurityPassword" runat="server" AssociatedControlID="txtSecurityPassword" Text="Current password" />
+                <asp:TextBox ID="txtSecurityPassword" runat="server" TextMode="Password" CssClass="jacaranda2fa-security-password" />
+            </div>
+            <div class="jacaranda2fa-button-row"><asp:Button ID="cmdConfirmSecurity" runat="server" Text="Confirm security changes" CssClass="dnnSecondaryAction" /></div>
+        </section>
 
         <section class="jacaranda2fa-security-card">
             <h3>Your account</h3>

@@ -10,11 +10,12 @@
 <%@ Import Namespace="DotNetNuke.Entities.Portals" %>
 <%@ Import Namespace="DotNetNuke.Entities.Users" %>
 <%@ Import Namespace="DotNetNuke.Security.Roles" %>
+<%@ Import Namespace="DotNetNuke.Security.Membership" %>
 <%@ Import Namespace="DotNetNuke.Services.Exceptions" %>
 <%@ Import Namespace="DotNetNuke.Services.Log.EventLog" %>
 
 <script runat="server">
-    private const string Version = "00.00.26";
+    private const string Version = "00.00.27";
     private const string SettingEnabled = "Jacaranda2FA_Enabled";
     private const string SettingPolicy = "Jacaranda2FA_Policy";
     private const string SettingRoleIds = "Jacaranda2FA_RoleIds";
@@ -50,6 +51,7 @@
         base.OnLoad(e);
         this.cmdGenerateRecovery.Click += this.GenerateRecoveryCodes_Click;
         this.cmdRevokeTrustedBrowsers.Click += this.RevokeTrustedBrowsers_Click;
+        this.txtRecoveryPassword.Attributes["autocomplete"] = "current-password";
 
         if (!this.IsPostBack)
         {
@@ -205,6 +207,15 @@
             return;
         }
 
+        if (!this.ValidateCurrentPassword(currentUser, this.txtRecoveryPassword.Text))
+        {
+            this.txtRecoveryPassword.Text = string.Empty;
+            this.ShowRecoveryMessage("Enter your current DNN password before generating or replacing recovery codes.", true);
+            this.LogSecurityEvent("SecurityReauthentication", currentUser, "Failed", "Recovery-code replacement password confirmation failed in provider settings.");
+            return;
+        }
+        this.txtRecoveryPassword.Text = string.Empty;
+
         List<string> plainCodes = new List<string>();
         List<string> hashes = new List<string>();
         List<string> salts = new List<string>();
@@ -226,11 +237,11 @@
 
         try
         {
-            DataProvider.Instance().ExecuteNonQuery("Jacaranda2FA_DeleteRecoveryCodes", this.PortalId, currentUser.UserID);
-            for (int i = 0; i < plainCodes.Count; i++)
-            {
-                DataProvider.Instance().ExecuteNonQuery("Jacaranda2FA_AddRecoveryCode", this.PortalId, currentUser.UserID, hashes[i], salts[i]);
-            }
+            DataProvider.Instance().ExecuteNonQuery(
+                "Jacaranda2FA_ReplaceRecoveryCodes",
+                this.PortalId,
+                currentUser.UserID,
+                this.BuildRecoveryCodesXml(hashes, salts));
         }
         catch (Exception ex)
         {
@@ -239,6 +250,7 @@
             return;
         }
 
+        this.SetSensitiveResponseNoStore();
         StringBuilder html = new StringBuilder();
         html.Append("<div class=\"dnnFormMessage dnnFormSuccess\"><strong>Save these codes now.</strong> They are shown only on this response. Generating another set immediately invalidates this set.</div><pre class=\"jacaranda2fa-recovery-list\">");
         for (int i = 0; i < plainCodes.Count; i++)
@@ -342,7 +354,7 @@
                             userId.ToString(CultureInfo.InvariantCulture);
         HttpCookie cookie = new HttpCookie(cookieName, string.Empty);
         cookie.HttpOnly = true;
-        cookie.Secure = this.Request != null && this.Request.IsSecureConnection;
+        cookie.Secure = true;
         cookie.Path = string.IsNullOrEmpty(DotNetNuke.Common.Globals.ApplicationPath)
             ? "/"
             : DotNetNuke.Common.Globals.ApplicationPath;
@@ -399,6 +411,44 @@
         this.litRecoveryMessage.Text = HttpUtility.HtmlEncode(message);
     }
 
+    private bool ValidateCurrentPassword(UserInfo currentUser, string password)
+    {
+        if (currentUser == null || currentUser.UserID <= 0 || string.IsNullOrEmpty(password)) return false;
+        UserLoginStatus status = UserLoginStatus.LOGIN_FAILURE;
+        UserInfo validated = null;
+        try
+        {
+            validated = UserController.ValidateUser(this.PortalId, currentUser.Username, password, "DNN", string.Empty, this.PortalSettings.PortalName, this.Request != null ? this.Request.UserHostAddress : string.Empty, ref status);
+        }
+        finally
+        {
+            password = string.Empty;
+        }
+        return validated != null && validated.UserID == currentUser.UserID && (status == UserLoginStatus.LOGIN_SUCCESS || status == UserLoginStatus.LOGIN_SUPERUSER);
+    }
+
+    private void SetSensitiveResponseNoStore()
+    {
+        if (this.Response == null) return;
+        this.Response.Cache.SetCacheability(HttpCacheability.NoCache);
+        this.Response.Cache.SetNoStore();
+        this.Response.Cache.SetExpires(DateTime.UtcNow.AddYears(-1));
+        this.Response.Cache.AppendCacheExtension("must-revalidate, proxy-revalidate");
+    }
+
+    private string BuildRecoveryCodesXml(IList<string> hashes, IList<string> salts)
+    {
+        if (hashes == null || salts == null || hashes.Count == 0 || hashes.Count != salts.Count) throw new InvalidOperationException("Recovery-code replacement requires matching hash and salt values.");
+        StringBuilder xml = new StringBuilder();
+        xml.Append("<codes>");
+        for (int i = 0; i < hashes.Count; i++)
+        {
+            xml.Append("<c h=\""); xml.Append(HttpUtility.HtmlAttributeEncode(hashes[i])); xml.Append("\" s=\""); xml.Append(HttpUtility.HtmlAttributeEncode(salts[i])); xml.Append("\" />");
+        }
+        xml.Append("</codes>");
+        return xml.ToString();
+    }
+
     private string GenerateRecoveryCode()
     {
         StringBuilder builder = new StringBuilder(RecoveryCodeLength);
@@ -434,12 +484,12 @@
     }
 </script>
 
-<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/AuthenticationServices/Jacaranda2FA/Login.css?v=00.00.26") %>" />
+<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/AuthenticationServices/Jacaranda2FA/Login.css?v=00.00.27") %>" />
 
 <div class="dnnForm jacaranda2fa-settings" style="padding-left:10px; padding-right:10px; box-sizing:border-box;">
     <div class="dnnFormMessage dnnFormInfo">
-        <strong>Jacaranda2FA 00.00.26</strong><br />
-        DNN validates the normal password first. Jacaranda2FA then applies the policy below and, where required, verifies an emailed one-time code, an unused recovery code, or a valid trusted-browser token before reporting successful authentication to DNN.
+        <strong>Jacaranda2FA 00.00.27</strong><br />
+        DNN validates the normal password first. Jacaranda2FA then applies the policy below and, where required, verifies a TOTP authenticator code, emailed one-time code, unused recovery code, or valid trusted-browser token before reporting successful authentication to DNN.
     </div>
 
     <div class="dnnFormItem">
@@ -462,7 +512,7 @@
     </div>
 
     <div class="dnnFormMessage dnnFormWarning">
-        <strong>Enforcement warning:</strong> while DNN's Normal login provider remains enabled, a user can choose Normal login and bypass Jacaranda2FA. Keep Normal login enabled during testing. Only disable it after Jacaranda2FA login, email delivery, recovery codes and SuperUser access have all been tested successfully.
+        <strong>Enforcement warning:</strong> any independently enabled authentication provider that completes a DNN login without passing through Jacaranda2FA can bypass Jacaranda2FA enforcement. During testing you may keep DNN Normal login available as a recovery path; for enforced production use, disable Normal and any other alternate login providers after Jacaranda2FA, recovery methods and SuperUser access have been tested successfully.
     </div>
 
     <fieldset class="jacaranda2fa-security-fieldset">
@@ -551,6 +601,11 @@
         <div class="dnnFormItem">
             <span class="dnnFormLabel">Current status</span>
             <asp:Literal ID="litRecoveryStatus" runat="server" />
+        </div>
+        <div class="dnnFormItem">
+            <asp:Label ID="lblRecoveryPassword" runat="server" AssociatedControlID="txtRecoveryPassword" CssClass="dnnFormLabel" Text="Current password" />
+            <asp:TextBox ID="txtRecoveryPassword" runat="server" TextMode="Password" />
+            <span class="jacaranda2fa-help">Required before a new recovery-code set can replace the existing set.</span>
         </div>
         <div class="dnnFormItem">
             <span class="dnnFormLabel">Generate codes</span>

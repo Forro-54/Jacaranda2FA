@@ -1,11 +1,18 @@
-Jacaranda2FA 00.00.26
+Jacaranda2FA 00.00.27
 
-Verification-stage retry fix.
+Security-hardening release based on the 00.00.26 source audit.
 
-- Fixes an incorrect authenticator-app code returning the user to the initial login screen.
-- Adds a one-request server-side verification flash message and clean verification-stage redirect for retryable second-factor errors.
-- Keeps the Jacaranda2FA authentication tab selected after an incorrect authenticator, email OTP, or recovery code.
-- Preserves the active second-factor challenge and remaining-attempt count after a retryable error.
-- Applies the same clean-stage handling to resend-delay/resend-limit messages and successful email-code resend.
-- No database schema changes.
-- No changes to password validation, TOTP algorithm, recovery-code storage, trusted browsers, or site policy logic.
+- Adds persistent cross-challenge second-factor throttling. Ten failed TOTP/email/recovery verifications within a 15-minute window trigger a 15-minute cooldown, preventing fresh login challenges from resetting the effective guessing budget.
+- Keeps the existing per-challenge verification-attempt limit as the first line of defence.
+- Clears the persistent failure throttle after a successful second factor.
+- Prevents expired password-valid challenges from being renewed through email fallback or email resend.
+- Email fallback/resend no longer extends the original first-factor challenge or resets failed-attempt counts.
+- Adds recent password reauthentication before Account Security can set up/replace/remove an authenticator app or generate/replace recovery codes. Confirmation lasts 10 minutes and the password is not stored.
+- Prevents a policy-covered user from removing an authenticator app when it is the last usable second-factor method.
+- Protects temporary TOTP enrolment secrets in Session with ASP.NET MachineKey protection.
+- Adds explicit no-store/no-cache response handling while TOTP enrolment secrets or newly generated recovery codes are displayed.
+- Replaces recovery-code sets transactionally so a failed database write does not deliberately delete the old set first.
+- Trusted-browser cookies are now issued only on HTTPS requests and always carry the Secure flag. Expiry cookies are also Secure.
+- Generalises the settings warning: any alternate authentication provider that completes login outside Jacaranda2FA can bypass Jacaranda2FA enforcement.
+- Adds 00.00.27.SqlDataProvider for persistent second-factor throttling and transactional recovery-code replacement.
+- No changes to DNN password hashing/validation, the TOTP algorithm, TOTP database secret protection, trusted-browser token entropy/hashing, role-policy evaluation, or final DNN authentication hand-off.

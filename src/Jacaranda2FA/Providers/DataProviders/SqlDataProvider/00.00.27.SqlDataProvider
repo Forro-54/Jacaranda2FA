@@ -1,0 +1,202 @@
+/* Jacaranda2FA 00.00.27 - security hardening
+   - persistent cross-challenge second-factor throttling
+   - transactional recovery-code set replacement
+*/
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_SecondFactorThrottle]') AND type = N'U')
+BEGIN
+    CREATE TABLE {databaseOwner}[{objectQualifier}Jacaranda2FA_SecondFactorThrottle]
+    (
+        [PortalID] INT NOT NULL,
+        [UserID] INT NOT NULL,
+        [FailureCount] INT NOT NULL,
+        [WindowStartedOnDate] DATETIME NOT NULL,
+        [LastFailureOnDate] DATETIME NOT NULL,
+        [BlockedUntilDate] DATETIME NULL,
+        CONSTRAINT [PK_{objectQualifier}Jacaranda2FA_SecondFactorThrottle] PRIMARY KEY CLUSTERED ([PortalID], [UserID])
+    );
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_GetSecondFactorBlockSeconds]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_GetSecondFactorBlockSeconds]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_GetSecondFactorBlockSeconds]
+    @PortalID INT,
+    @UserID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @Now DATETIME = GETUTCDATE();
+    DECLARE @BlockedUntil DATETIME;
+
+    SELECT @BlockedUntil = [BlockedUntilDate]
+      FROM {databaseOwner}[{objectQualifier}Jacaranda2FA_SecondFactorThrottle]
+     WHERE [PortalID] = @PortalID
+       AND [UserID] = @UserID;
+
+    IF @BlockedUntil IS NOT NULL AND @BlockedUntil > @Now
+        SELECT DATEDIFF(SECOND, @Now, @BlockedUntil) + 1;
+    ELSE
+        SELECT 0;
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_RecordSecondFactorFailure]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_RecordSecondFactorFailure]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_RecordSecondFactorFailure]
+    @PortalID INT,
+    @UserID INT,
+    @MaxFailures INT,
+    @WindowMinutes INT,
+    @BlockMinutes INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF @MaxFailures < 5 SET @MaxFailures = 5;
+    IF @MaxFailures > 50 SET @MaxFailures = 50;
+    IF @WindowMinutes < 1 SET @WindowMinutes = 1;
+    IF @WindowMinutes > 120 SET @WindowMinutes = 120;
+    IF @BlockMinutes < 1 SET @BlockMinutes = 1;
+    IF @BlockMinutes > 1440 SET @BlockMinutes = 1440;
+
+    DECLARE @Now DATETIME = GETUTCDATE();
+    DECLARE @FailureCount INT;
+    DECLARE @WindowStarted DATETIME;
+    DECLARE @BlockedUntil DATETIME;
+
+    BEGIN TRANSACTION;
+
+    SELECT @FailureCount = [FailureCount],
+           @WindowStarted = [WindowStartedOnDate],
+           @BlockedUntil = [BlockedUntilDate]
+      FROM {databaseOwner}[{objectQualifier}Jacaranda2FA_SecondFactorThrottle] WITH (UPDLOCK, HOLDLOCK)
+     WHERE [PortalID] = @PortalID
+       AND [UserID] = @UserID;
+
+    IF @FailureCount IS NULL
+    BEGIN
+        SET @FailureCount = 1;
+        SET @WindowStarted = @Now;
+        SET @BlockedUntil = NULL;
+
+        INSERT INTO {databaseOwner}[{objectQualifier}Jacaranda2FA_SecondFactorThrottle]
+            ([PortalID], [UserID], [FailureCount], [WindowStartedOnDate], [LastFailureOnDate], [BlockedUntilDate])
+        VALUES
+            (@PortalID, @UserID, @FailureCount, @WindowStarted, @Now, @BlockedUntil);
+    END
+    ELSE
+    BEGIN
+        IF @BlockedUntil IS NOT NULL AND @BlockedUntil > @Now
+        BEGIN
+            UPDATE {databaseOwner}[{objectQualifier}Jacaranda2FA_SecondFactorThrottle]
+               SET [LastFailureOnDate] = @Now
+             WHERE [PortalID] = @PortalID
+               AND [UserID] = @UserID;
+        END
+        ELSE
+        BEGIN
+            IF @WindowStarted IS NULL OR DATEADD(MINUTE, @WindowMinutes, @WindowStarted) <= @Now
+            BEGIN
+                SET @FailureCount = 1;
+                SET @WindowStarted = @Now;
+                SET @BlockedUntil = NULL;
+            END
+            ELSE
+            BEGIN
+                SET @FailureCount = @FailureCount + 1;
+            END
+
+            IF @FailureCount >= @MaxFailures
+                SET @BlockedUntil = DATEADD(MINUTE, @BlockMinutes, @Now);
+
+            UPDATE {databaseOwner}[{objectQualifier}Jacaranda2FA_SecondFactorThrottle]
+               SET [FailureCount] = @FailureCount,
+                   [WindowStartedOnDate] = @WindowStarted,
+                   [LastFailureOnDate] = @Now,
+                   [BlockedUntilDate] = @BlockedUntil
+             WHERE [PortalID] = @PortalID
+               AND [UserID] = @UserID;
+        END
+    END
+
+    COMMIT TRANSACTION;
+
+    IF @BlockedUntil IS NOT NULL AND @BlockedUntil > @Now
+        SELECT DATEDIFF(SECOND, @Now, @BlockedUntil) + 1;
+    ELSE
+        SELECT 0;
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_ClearSecondFactorThrottle]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_ClearSecondFactorThrottle]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_ClearSecondFactorThrottle]
+    @PortalID INT,
+    @UserID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DELETE FROM {databaseOwner}[{objectQualifier}Jacaranda2FA_SecondFactorThrottle]
+     WHERE [PortalID] = @PortalID
+       AND [UserID] = @UserID;
+END
+GO
+
+IF OBJECT_ID(N'{databaseOwner}[{objectQualifier}Jacaranda2FA_ReplaceRecoveryCodes]', N'P') IS NOT NULL
+    DROP PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_ReplaceRecoveryCodes]
+GO
+CREATE PROCEDURE {databaseOwner}[{objectQualifier}Jacaranda2FA_ReplaceRecoveryCodes]
+    @PortalID INT,
+    @UserID INT,
+    @CodesXml NVARCHAR(MAX)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @Codes XML;
+    SET @Codes = CAST(@CodesXml AS XML);
+
+    IF @Codes IS NULL OR @Codes.exist('/codes/c[1]') = 0
+    BEGIN
+        RAISERROR('Jacaranda2FA recovery-code replacement received no codes.', 16, 1);
+        RETURN;
+    END
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        DELETE FROM {databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes]
+         WHERE [PortalID] = @PortalID
+           AND [UserID] = @UserID;
+
+        INSERT INTO {databaseOwner}[{objectQualifier}Jacaranda2FA_RecoveryCodes]
+            ([PortalID], [UserID], [CodeHash], [CodeSalt], [CreatedOnDate], [UsedOnDate])
+        SELECT @PortalID,
+               @UserID,
+               N.C.value('@h', 'NVARCHAR(88)'),
+               N.C.value('@s', 'NVARCHAR(44)'),
+               GETUTCDATE(),
+               NULL
+          FROM @Codes.nodes('/codes/c') AS N(C);
+
+        IF @@ROWCOUNT = 0
+            RAISERROR('Jacaranda2FA recovery-code replacement inserted no codes.', 16, 1);
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+
+        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+        RAISERROR(@ErrorMessage, 16, 1);
+    END CATCH
+END
+GO
