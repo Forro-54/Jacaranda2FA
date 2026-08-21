@@ -1,12 +1,15 @@
-Jacaranda2FA 00.00.28
+Jacaranda2FA 00.00.31
 
-Login-form alignment and accessibility cleanup release based on the confirmed-working 00.00.27 security-hardened baseline.
+DNN 10.3.2 popup/mobile field-width correction based on 00.00.30.
 
-- Reworks the “Keep me signed in” row so the checkbox is clearly visible and aligned directly beside its label.
-- Reworks the “Remember this browser for 2FA” row so the checkbox is clearly visible and aligned directly beside its label.
-- Adds explicit checkbox sizing and layout overrides so DNN/theme textbox rules cannot stretch, float or separate these checkbox controls from their text.
-- Makes both labels explicitly associated with their checkbox controls, improving click/tap targeting and accessibility.
-- Aligns the explanatory help text beneath each checkbox/label pair instead of allowing it to compete with DNN form-label floats.
-- Includes a small-screen layout adjustment for the same rows.
-- No authentication-flow, password-validation, TOTP, email OTP, recovery-code, trusted-browser security, throttling, database-schema, policy, or cryptographic changes.
-- No new SQL migration. The existing 00.00.27 security-hardening database migration remains the current schema level.
+- Fixes username, password and 2FA fields remaining full width under the stock DNN login layout.
+- Root cause: DNN 10.3.2 default.css applies min-width:100% !important to text/password inputs in dnnFormPopupMobileView.
+- CSS min-width overrides max-width, so the 00.00.30 maximum widths could not visually shrink the fields.
+- Explicitly resets min-width to 0 !important on Jacaranda2FA credential, authenticator/email-code and recovery-code inputs.
+- Retains username/password maximum width of 460px.
+- Retains authenticator/email verification code maximum width of 14rem.
+- Retains recovery-code maximum width of 18rem.
+- Includes exact overrides for DNN's dnnFormPopupMobileView selectors.
+- Retains the single-checkbox and checkbox-alignment fixes from 00.00.29/00.00.28.
+- No authentication, TOTP, email OTP, recovery-code, trusted-browser security, throttling, policy, cryptographic, or database-schema changes.
+- No new SQL migration.

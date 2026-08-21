@@ -1,5 +1,37 @@
 # Changelog
 
+## 00.00.31
+
+- UI-only correction for the DNN 10.3.2 popup/mobile login form.
+- Identified DNN's `min-width:100% !important` rule as the reason 00.00.30 maximum widths had no visible effect.
+- Explicitly resets `min-width:0 !important` on Jacaranda2FA credential, OTP/TOTP and recovery-code inputs.
+- Adds exact overrides for `dnnFormPopupMobileView`.
+- Retains all checkbox normalisation/alignment fixes.
+- No authentication, security-model, cryptographic, policy, or database-schema changes.
+- No new SQL migration.
+
+## 00.00.30
+
+- UI-only width-hardening release for the stock DNN 10.3.2 full-width skin.
+- Username/password controls now have a forced responsive maximum width of 460px.
+- Authenticator/email-code controls now have a forced maximum width of 14rem.
+- Recovery-code entry now has a forced maximum width of 18rem.
+- Added inline `!important` field constraints plus stronger stock-DNN CSS fallback selectors.
+- Retains the 00.00.29 duplicate-checkbox normalisation and 00.00.28 checkbox alignment.
+- No authentication, security-model, cryptographic, policy, or database-schema changes.
+- No new SQL migration.
+
+## 00.00.29
+
+- UI-only/default-skin housekeeping release based on the confirmed-working 00.00.28 baseline.
+- Constrained username and password fields to a responsive 460px maximum width for DNN skins with full-width content panes.
+- Fixed duplicate visual checkboxes caused by DNN's `dnnCheckbox()` JavaScript wrapping the same native checkbox that 00.00.28 deliberately made visible.
+- Marked the native inputs as `normalCheckBox` so DNN leaves them as ordinary accessible checkboxes.
+- Retained the 00.00.28 flex alignment, label association and help-text positioning.
+- Added a defensive CSS fallback for an already-injected DNN checkbox wrapper.
+- No authentication, security-model, cryptographic, database-schema or policy changes.
+- No new SQL migration.
+
 ## 00.00.28
 
 - UI-only login-form alignment and accessibility cleanup based on the confirmed-working 00.00.27 security-hardened baseline.

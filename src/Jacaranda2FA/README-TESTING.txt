@@ -1,42 +1,41 @@
-Jacaranda2FA 00.00.28 TESTING
+Jacaranda2FA 00.00.31 TESTING
 ===============================
 
 Purpose
 -------
-00.00.28 is a UI-only login-form alignment/accessibility cleanup based on the confirmed-working 00.00.27 security-hardening release.
+Correct the stock DNN 10.3.2 popup/mobile min-width rule that defeated the
+00.00.30 max-width limits.
 
-Upgrade test
-------------
-- Install 00.00.28 over 00.00.27 without uninstalling 00.00.27.
-- EXPECTED: no new SQL migration is required.
-- EXPECTED: Jacaranda2FA remains enabled and existing authenticator, recovery-code and trusted-browser data remain intact.
+Upgrade
+-------
+Install 00.00.31 directly over 00.00.30. No new SQL migration is included.
 
-Login-page visual tests
------------------------
-1. Initial Jacaranda2FA login screen:
-   - “Keep me signed in” checkbox is visible.
-   - Checkbox sits immediately to the left of the label text.
-   - Label text is vertically aligned with the checkbox.
-   - Explanatory text sits below the checkbox/label line.
+Visual checks on virgin/default DNN 10.3.2
+------------------------------------------
+1. Username/password:
+   - should no longer span the page;
+   - maximum width about 460px on wide layouts.
 
-2. 2FA verification screen:
-   - “Remember this browser for 2FA” checkbox is visible.
-   - Checkbox sits immediately to the left of the label text.
-   - Label text is vertically aligned with the checkbox.
-   - Explanatory text sits below the checkbox/label line.
+2. Authenticator/email verification:
+   - code field should be compact, maximum 14rem.
 
-3. Repeat the visual checks at desktop and narrow/mobile widths.
+3. Recovery code:
+   - maximum 18rem.
+
+4. Checkboxes:
+   - one visible checkbox only for each option;
+   - label alignment retained.
 
 Functional regression
 ---------------------
-- Normal password + authenticator login succeeds.
+- Microsoft Authenticator login succeeds.
+- Google Authenticator login succeeds.
 - Email fallback succeeds.
 - Recovery-code login succeeds.
-- “Keep me signed in” still controls DNN persistent sign-in.
-- “Remember this browser for 2FA” still creates a trusted-browser record only after successful 2FA and only over HTTPS.
-- Existing trusted-browser revocation continues to work.
+- Trusted-browser behaviour remains unchanged.
 - Jacaranda2FA still works with DNN Normal authentication disabled.
 
 Rollback
 --------
-00.00.27 is the confirmed-working rollback baseline if an unexpected DNN/theme rendering problem appears.
+00.00.28 remains the last fully confirmed working master until this UI correction
+is confirmed in runtime testing.

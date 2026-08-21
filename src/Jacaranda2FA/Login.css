@@ -1,4 +1,4 @@
-/* Jacaranda2FA - DNN two-factor authentication 00.00.28 */
+/* Jacaranda2FA - DNN two-factor authentication 00.00.31 */
 .jacaranda2fa-login .jacaranda2fa-intro {
     margin: 0 0 1.25rem 0;
     line-height: 1.55;
@@ -307,5 +307,106 @@ body .dnnLogin .LoginTabGroup .LoginTabSelected * {
         margin-left: 1.75rem;
         max-width: calc(100% - 1.75rem);
     }
+}
+
+/* 00.00.29 default-skin form-width and checkbox-normalisation cleanup.
+   DNN's dnnCheckbox() script normally hides a native checkbox and inserts a
+   second image-based checkbox. Jacaranda2FA intentionally uses normalCheckBox
+   so only the real, accessible checkbox is rendered. */
+.jacaranda2fa-login .jacaranda2fa-credential-field {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 460px !important;
+    box-sizing: border-box !important;
+}
+
+.jacaranda2fa-login .jacaranda2fa-checkbox-input input[type="checkbox"],
+.jacaranda2fa-login input[type="checkbox"].jacaranda2fa-native-checkbox {
+    -webkit-appearance: checkbox !important;
+    appearance: auto !important;
+}
+
+/* Defensive fallback if a skin or cached DNN script has already injected the
+   DNN image wrapper: keep the native control and suppress the visual duplicate. */
+.jacaranda2fa-login .jacaranda2fa-checkbox-line .dnnCheckbox {
+    display: none !important;
+}
+
+/* 00.00.30 stock-DNN width hardening.
+   The default DNN 10.3.2 skin can apply full-width input rules with equal or
+   greater stylesheet precedence. These selectors are a CSS fallback to the
+   inline max-width constraints emitted by Login.ascx. */
+body .dnnLogin .jacaranda2fa-login input.jacaranda2fa-credential-field,
+body .dnnLogin .jacaranda2fa-login input[type="text"].jacaranda2fa-credential-field,
+body .dnnLogin .jacaranda2fa-login input[type="password"].jacaranda2fa-credential-field {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 460px !important;
+    box-sizing: border-box !important;
+}
+
+body .dnnLogin .jacaranda2fa-login input.jacaranda2fa-code,
+body .dnnLogin .jacaranda2fa-login input[type="text"].jacaranda2fa-code {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 14rem !important;
+    box-sizing: border-box !important;
+}
+
+body .dnnLogin .jacaranda2fa-login input.jacaranda2fa-recovery-code,
+body .dnnLogin .jacaranda2fa-login input[type="text"].jacaranda2fa-recovery-code {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 18rem !important;
+    box-sizing: border-box !important;
+}
+
+/* 00.00.31 DNN popup/mobile min-width reset.
+   DNN 10.3.2 default.css applies min-width:100% !important to login-form
+   text/password inputs in dnnFormPopupMobileView. CSS min-width takes
+   precedence over max-width, so the field stayed full-page width even when
+   Jacaranda2FA supplied a smaller max-width. Reset min-width explicitly. */
+body.mobileView.dnnFormPopup.dnnFormPopupMobileView
+    .dnnForm .dnnFormItem > input.jacaranda2fa-credential-field,
+body.mobileView.dnnFormPopup.dnnFormPopupMobileView
+    .dnnForm .dnnFormItem > input.jacaranda2fa-code,
+body.mobileView.dnnFormPopup.dnnFormPopupMobileView
+    .dnnForm .dnnFormItem > input.jacaranda2fa-recovery-code,
+body.dnnFormPopup.dnnFormPopupMobileView
+    .dnnForm .dnnFormItem > input.jacaranda2fa-credential-field,
+body.dnnFormPopup.dnnFormPopupMobileView
+    .dnnForm .dnnFormItem > input.jacaranda2fa-code,
+body.dnnFormPopup.dnnFormPopupMobileView
+    .dnnForm .dnnFormItem > input.jacaranda2fa-recovery-code {
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+}
+
+body.mobileView.dnnFormPopup.dnnFormPopupMobileView
+    .dnnForm .dnnFormItem > input.jacaranda2fa-credential-field,
+body.dnnFormPopup.dnnFormPopupMobileView
+    .dnnForm .dnnFormItem > input.jacaranda2fa-credential-field {
+    width: 100% !important;
+    max-width: 460px !important;
+}
+
+body.mobileView.dnnFormPopup.dnnFormPopupMobileView
+    .dnnForm .dnnFormItem > input.jacaranda2fa-code,
+body.dnnFormPopup.dnnFormPopupMobileView
+    .dnnForm .dnnFormItem > input.jacaranda2fa-code {
+    width: 100% !important;
+    max-width: 14rem !important;
+}
+
+body.mobileView.dnnFormPopup.dnnFormPopupMobileView
+    .dnnForm .dnnFormItem > input.jacaranda2fa-recovery-code,
+body.dnnFormPopup.dnnFormPopupMobileView
+    .dnnForm .dnnFormItem > input.jacaranda2fa-recovery-code {
+    width: 100% !important;
+    max-width: 18rem !important;
 }
 

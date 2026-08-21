@@ -29,7 +29,7 @@
     private const int DefaultTrustedBrowserDays = 30;
     private const int DefaultMaxTrustedBrowsers = 10;
     private const string TrustedCookiePrefix = "Jacaranda2FA.Trusted.";
-    private const string Version = "00.00.28";
+    private const string Version = "00.00.31";
     private const string SettingEnabled = "Jacaranda2FA_Enabled";
     private const string SettingPolicy = "Jacaranda2FA_Policy";
     private const string SettingRoleIds = "Jacaranda2FA_RoleIds";
@@ -171,6 +171,12 @@
         this.litTrustedDays.Text = this.TrustedBrowserDays.ToString(CultureInfo.InvariantCulture);
 
         this.chkRemember.Visible = Host.RememberCheckbox;
+
+        // DNN's dnnCheckbox() JavaScript creates a second visual checkbox unless the
+        // real input is explicitly marked as a normalCheckBox. Keep the native
+        // checkbox as the single interactive control on both stock and custom skins.
+        this.chkRemember.InputAttributes["class"] = "normalCheckBox jacaranda2fa-native-checkbox";
+        this.chkTrustBrowser.InputAttributes["class"] = "normalCheckBox jacaranda2fa-native-checkbox";
 
         string returnUrl = DotNetNuke.Common.Globals.NavigateURL();
         string encodedReturnUrl = HttpUtility.UrlEncode(returnUrl);
@@ -1262,7 +1268,7 @@
 
             if (!string.IsNullOrEmpty(error))
             {
-                Exceptions.LogException(new Exception("Jacaranda2FA 00.00.28 email delivery error: " + error));
+                Exceptions.LogException(new Exception("Jacaranda2FA 00.00.31 email delivery error: " + error));
                 this.LogSecurityEvent(resend ? "OtpResend" : "OtpSent", user.UserID, user.Username, "Failed", "DNN mail provider reported a delivery error.");
                 this.ShowMessage("DNN reported a problem sending the verification email. Check the site's SMTP configuration and Event Viewer.", true);
                 return false;
@@ -2096,7 +2102,7 @@
     }
 </script>
 
-<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/AuthenticationServices/Jacaranda2FA/Login.css?v=00.00.28") %>" />
+<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/AuthenticationServices/Jacaranda2FA/Login.css?v=00.00.31") %>" />
 
 <div class="dnnForm dnnLoginService dnnClear jacaranda2fa-login">
     <asp:HiddenField ID="actionField" runat="server" />
@@ -2106,21 +2112,21 @@
 
     <asp:Panel ID="pnlLogin" runat="server">
         <div class="jacaranda2fa-intro">
-            <strong>Jacaranda2FA <span class="jacaranda2fa-version">00.00.28</span></strong><br />
+            <strong>Jacaranda2FA <span class="jacaranda2fa-version">00.00.31</span></strong><br />
             Enter your normal DNN username and password. If the current Jacaranda2FA policy requires a second factor, an enrolled authenticator app is offered first; email verification and recovery codes remain available when configured.
         </div>
 
         <div class="dnnFormItem">
             <div class="dnnLabel"><asp:Label ID="lblUsername" runat="server" AssociatedControlID="txtUsername" CssClass="dnnFormLabel" Text="Username" /></div>
-            <asp:TextBox ID="txtUsername" runat="server" />
+            <asp:TextBox ID="txtUsername" runat="server" CssClass="jacaranda2fa-credential-field" style="display:block !important; width:100% !important; min-width:0 !important; max-width:460px !important; box-sizing:border-box !important;" />
         </div>
         <div class="dnnFormItem">
             <div class="dnnLabel"><asp:Label ID="lblPassword" runat="server" AssociatedControlID="txtPassword" CssClass="dnnFormLabel" Text="Password" /></div>
-            <asp:TextBox ID="txtPassword" runat="server" TextMode="Password" />
+            <asp:TextBox ID="txtPassword" runat="server" TextMode="Password" CssClass="jacaranda2fa-credential-field" style="display:block !important; width:100% !important; min-width:0 !important; max-width:460px !important; box-sizing:border-box !important;" />
         </div>
         <div class="dnnFormItem jacaranda2fa-checkbox-row jacaranda2fa-remember-row">
             <div class="jacaranda2fa-checkbox-line">
-                <asp:CheckBox ID="chkRemember" runat="server" CssClass="jacaranda2fa-checkbox-input" />
+                <asp:CheckBox ID="chkRemember" runat="server" CssClass="normalCheckBox jacaranda2fa-checkbox-input" />
                 <asp:Label ID="lblRemember" runat="server" AssociatedControlID="chkRemember" CssClass="jacaranda2fa-checkbox-label" Text="Keep me signed in" />
             </div>
             <div class="jacaranda2fa-checkbox-help">DNN persistent sign-in. This is separate from trusting a browser for 2FA.</div>
@@ -2151,7 +2157,7 @@
             <div class="jacaranda2fa-method-heading"><strong>Authenticator app</strong><br />Enter the current six-digit code shown in your authenticator app.</div>
             <div class="dnnFormItem jacaranda2fa-code-row">
                 <div class="dnnLabel"><asp:Label ID="lblAuthenticatorCode" runat="server" AssociatedControlID="txtAuthenticatorCode" CssClass="dnnFormLabel" Text="Authenticator code" /></div>
-                <asp:TextBox ID="txtAuthenticatorCode" runat="server" CssClass="jacaranda2fa-code" />
+                <asp:TextBox ID="txtAuthenticatorCode" runat="server" CssClass="jacaranda2fa-code" style="display:block !important; width:100% !important; min-width:0 !important; max-width:14rem !important; box-sizing:border-box !important;" />
             </div>
             <div class="dnnFormItem jacaranda2fa-actions">
                 <span class="dnnFormLabel">&nbsp;</span>
@@ -2171,7 +2177,7 @@
             <div class="jacaranda2fa-method-heading"><strong>Email verification</strong><br />We sent a six-digit code to <strong><asp:Literal ID="litDestination" runat="server" /></strong>. The code expires after <asp:Literal ID="litCodeLifetime" runat="server" /> minute(s).</div>
             <div class="dnnFormItem jacaranda2fa-code-row">
                 <div class="dnnLabel"><asp:Label ID="lblCode" runat="server" AssociatedControlID="txtCode" CssClass="dnnFormLabel" Text="Email verification code" /></div>
-                <asp:TextBox ID="txtCode" runat="server" CssClass="jacaranda2fa-code" />
+                <asp:TextBox ID="txtCode" runat="server" CssClass="jacaranda2fa-code" style="display:block !important; width:100% !important; min-width:0 !important; max-width:14rem !important; box-sizing:border-box !important;" />
             </div>
             <div class="dnnFormItem jacaranda2fa-actions">
                 <span class="dnnFormLabel">&nbsp;</span>
@@ -2182,7 +2188,7 @@
 
         <div class="dnnFormItem jacaranda2fa-trust-row jacaranda2fa-checkbox-row">
             <div class="jacaranda2fa-checkbox-line">
-                <asp:CheckBox ID="chkTrustBrowser" runat="server" CssClass="jacaranda2fa-checkbox-input" />
+                <asp:CheckBox ID="chkTrustBrowser" runat="server" CssClass="normalCheckBox jacaranda2fa-checkbox-input" />
                 <asp:Label ID="lblTrustBrowser" runat="server" AssociatedControlID="chkTrustBrowser" CssClass="jacaranda2fa-checkbox-label" Text="Remember this browser for 2FA" />
             </div>
             <div class="jacaranda2fa-checkbox-help">Skip the authenticator/email/recovery-code step on this browser for <asp:Literal ID="litTrustedDays" runat="server" /> day(s) after your password is accepted.</div>
@@ -2195,7 +2201,7 @@
             <div class="jacaranda2fa-recovery-heading"><strong>Recovery code</strong><br />If you cannot use the authenticator app or email verification, you may use one unused Jacaranda2FA recovery code for this account.</div>
             <div class="dnnFormItem">
                 <div class="dnnLabel"><asp:Label ID="lblRecoveryCode" runat="server" AssociatedControlID="txtRecoveryCode" CssClass="dnnFormLabel" Text="Recovery code" /></div>
-                <asp:TextBox ID="txtRecoveryCode" runat="server" CssClass="jacaranda2fa-recovery-code" />
+                <asp:TextBox ID="txtRecoveryCode" runat="server" CssClass="jacaranda2fa-recovery-code" style="display:block !important; width:100% !important; min-width:0 !important; max-width:18rem !important; box-sizing:border-box !important;" />
             </div>
             <div class="dnnFormItem jacaranda2fa-actions">
                 <span class="dnnFormLabel">&nbsp;</span>
