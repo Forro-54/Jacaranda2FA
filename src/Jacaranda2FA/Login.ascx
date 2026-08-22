@@ -29,7 +29,7 @@
     private const int DefaultTrustedBrowserDays = 30;
     private const int DefaultMaxTrustedBrowsers = 10;
     private const string TrustedCookiePrefix = "Jacaranda2FA.Trusted.";
-    private const string Version = "00.00.31";
+    private const string Version = "01.00.00";
     private const string SettingEnabled = "Jacaranda2FA_Enabled";
     private const string SettingPolicy = "Jacaranda2FA_Policy";
     private const string SettingRoleIds = "Jacaranda2FA_RoleIds";
@@ -1268,7 +1268,7 @@
 
             if (!string.IsNullOrEmpty(error))
             {
-                Exceptions.LogException(new Exception("Jacaranda2FA 00.00.31 email delivery error: " + error));
+                Exceptions.LogException(new Exception("Jacaranda2FA 01.00.00 email delivery error: " + error));
                 this.LogSecurityEvent(resend ? "OtpResend" : "OtpSent", user.UserID, user.Username, "Failed", "DNN mail provider reported a delivery error.");
                 this.ShowMessage("DNN reported a problem sending the verification email. Check the site's SMTP configuration and Event Viewer.", true);
                 return false;
@@ -2102,7 +2102,7 @@
     }
 </script>
 
-<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/AuthenticationServices/Jacaranda2FA/Login.css?v=00.00.31") %>" />
+<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/AuthenticationServices/Jacaranda2FA/Login.css?v=01.00.00") %>" />
 
 <div class="dnnForm dnnLoginService dnnClear jacaranda2fa-login">
     <asp:HiddenField ID="actionField" runat="server" />
@@ -2112,7 +2112,7 @@
 
     <asp:Panel ID="pnlLogin" runat="server">
         <div class="jacaranda2fa-intro">
-            <strong>Jacaranda2FA <span class="jacaranda2fa-version">00.00.31</span></strong><br />
+            <strong>Jacaranda2FA <span class="jacaranda2fa-version">01.00.00</span></strong><br />
             Enter your normal DNN username and password. If the current Jacaranda2FA policy requires a second factor, an enrolled authenticator app is offered first; email verification and recovery codes remain available when configured.
         </div>
 

@@ -1,37 +1,109 @@
 # Jacaranda2FA
 
-Jacaranda2FA is a two-factor authentication provider for **DNN Platform 10.3.2**. DNN remains responsible for normal username/password validation and final authentication. Where policy requires a second factor, Jacaranda2FA verifies a TOTP authenticator code, email OTP or one-time recovery code, with optional trusted-browser support.
+**Jacaranda2FA 01.00.00 — First Public Test Release**
 
-## Current development version
+Jacaranda2FA is a community two-factor authentication extension for **DNN Platform**.
+It keeps DNN responsible for normal username/password validation and final
+authentication, while adding a second verification stage when policy requires it.
 
-**00.00.31**
+## Tested compatibility
 
-### 00.00.31 DNN popup/mobile field-width correction
+01.00.00 has been tested successfully on:
 
-- Fixes the stock DNN 10.3.2 `dnnFormPopupMobileView` rule that forced login fields to `min-width:100% !important`.
-- Explicitly resets Jacaranda2FA login/2FA field `min-width` to zero so the intended responsive maximum widths can take effect.
-- Retains 460px username/password, 14rem OTP/TOTP and 18rem recovery-code maximum widths.
-- Retains the duplicate-checkbox and alignment fixes.
-- No authentication, security-model, cryptographic, policy or database-schema changes.
+- **DNN Platform 10.3.2**
+- **DNN Platform 10.3.3**
+- the stock/default DNN skin
+- a production-style Bootstrap 5 custom skin
+- Microsoft Authenticator
+- Google Authenticator
+
+## Features
+
+- TOTP authenticator-app verification
+- email one-time verification codes
+- one-time recovery codes
+- trusted/remembered browsers
+- role-based enforcement policies
+- persistent cross-challenge second-factor throttling
+- TOTP replay protection
+- security audit logging
+- configurable OTP, resend, trusted-browser and recovery-code controls
+- Account Security module for authenticator, recovery-code and trusted-browser management
+- responsive login and verification controls
+
 ## Authentication boundary
 
-Jacaranda2FA does **not** create DNN authentication cookies itself. DNN validates the normal username/password first. When the account requires a second factor, Jacaranda2FA completes verification before raising DNN's normal successful authentication event.
+Jacaranda2FA does **not** replace DNN's password system and does not create the
+DNN authentication cookie directly.
 
-A valid trusted-browser token is evaluated only **after** DNN has accepted the normal password.
+1. DNN validates the username and password.
+2. Jacaranda2FA determines whether a second factor is required.
+3. Jacaranda2FA verifies the configured second factor.
+4. Jacaranda2FA hands successful authentication back to DNN.
+5. DNN completes the normal login.
+
+A trusted-browser token is considered only **after DNN has accepted the password**.
+
+## Important enforcement note
+
+Jacaranda2FA can enforce 2FA only for authentication paths that pass through
+Jacaranda2FA.
+
+If **DNN Normal Login** or another independent authentication provider remains
+enabled, that provider may offer a separate login route that does not invoke
+Jacaranda2FA.
+
+Before disabling alternative authentication providers, confirm that a SuperUser
+can successfully authenticate through Jacaranda2FA and has a usable authenticator,
+email fallback or unused recovery code. Keep a logged-in SuperUser session open
+during initial enforcement testing.
+
+## Email fallback
+
+Email OTP is provided as a practical fallback. An authenticator app plus securely
+stored recovery codes is recommended for higher-assurance accounts.
+
+## Installation
+
+Install `Jacaranda2FA_01.00.00_Install.zip` through DNN Extensions.
+
+For a fresh installation, enable Jacaranda2FA while leaving DNN Normal Login
+enabled for the first test. Verify Jacaranda2FA with a normal user and a SuperUser
+before deciding whether to disable other authentication providers.
+
+See `INSTALLATION.md` and `PUBLIC-TESTING.md`.
+
+## Upgrade from development versions
+
+01.00.00 is promoted directly from the confirmed-working **00.00.31** development
+baseline. Install 01.00.00 as an upgrade; do not uninstall the working extension first.
+
+There is **no new database migration in 01.00.00**.
+
+## Security
+
+The 00.00.27 hardening cycle added persistent second-factor throttling, stricter
+challenge expiry, recent password confirmation for sensitive Account Security
+changes, protected temporary TOTP enrolment state, no-store handling for one-time
+secrets, transactional recovery-code replacement and HTTPS-only trusted-browser issuance.
+
+For suspected vulnerabilities, see `SECURITY.md`.
 
 ## Repository layout
 
-- `src/Jacaranda2FA/` — DNN authentication-provider and Account Security module source/package files.
-- `src/Jacaranda2FA/README-TESTING.txt` — release-specific regression and security test plan.
+- `src/Jacaranda2FA/` — DNN provider and Account Security module source/package files
+- `INSTALLATION.md` — installation, upgrade and enforcement guidance
+- `PUBLIC-TESTING.md` — recommended public-test matrix
+- `SECURITY.md` — private security-reporting guidance
+- `CHANGELOG.md` — release history
 
-## Install package
+## Status
 
-The release install package is:
+01.00.00 is a **public test release**. Validate it in test/staging before production
+deployment and retain normal DNN backup and recovery procedures.
 
-`Jacaranda2FA_00.00.31_Install.zip`
+## Licence
 
-Install 00.00.30 as an upgrade over 00.00.29. Do not uninstall the working package first.
+MIT License.
 
-## Testing
-
-Use a **DNN 10.3.2 test site first** and keep a separate logged-in SuperUser session open during the initial upgrade test. Version 00.00.28 is the confirmed-working rollback baseline while 00.00.29 completes default-skin UI regression testing.
+Copyright (c) 2026 Forrest IT Services

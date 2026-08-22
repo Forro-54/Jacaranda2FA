@@ -1,5 +1,21 @@
 # Changelog
 
+## 01.00.00
+
+- First public test release.
+- Promoted directly from the confirmed-working 00.00.31 development baseline.
+- Tested on DNN Platform 10.3.2 and 10.3.3.
+- Tested with Microsoft Authenticator and Google Authenticator.
+- Tested with email OTP, one-time recovery codes and trusted browsers.
+- Tested with the stock DNN skin and a production-style custom Bootstrap 5 skin.
+- Tested with normal registered users and SuperUsers.
+- Tested with Jacaranda2FA operating as the sole enabled login provider.
+- Added public installation, testing and private security-reporting documentation.
+- Cleaned release metadata and public-release wording.
+- No authentication-flow, security-model, cryptographic, throttling,
+  trusted-browser, recovery-code, TOTP or database-schema changes from 00.00.31.
+- No new SQL migration.
+
 ## 00.00.31
 
 - UI-only correction for the DNN 10.3.2 popup/mobile login form.

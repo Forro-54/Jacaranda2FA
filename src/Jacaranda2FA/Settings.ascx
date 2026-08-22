@@ -15,7 +15,7 @@
 <%@ Import Namespace="DotNetNuke.Services.Log.EventLog" %>
 
 <script runat="server">
-    private const string Version = "00.00.31";
+    private const string Version = "01.00.00";
     private const string SettingEnabled = "Jacaranda2FA_Enabled";
     private const string SettingPolicy = "Jacaranda2FA_Policy";
     private const string SettingRoleIds = "Jacaranda2FA_RoleIds";
@@ -484,11 +484,11 @@
     }
 </script>
 
-<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/AuthenticationServices/Jacaranda2FA/Login.css?v=00.00.31") %>" />
+<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/AuthenticationServices/Jacaranda2FA/Login.css?v=01.00.00") %>" />
 
 <div class="dnnForm jacaranda2fa-settings" style="padding-left:10px; padding-right:10px; box-sizing:border-box;">
     <div class="dnnFormMessage dnnFormInfo">
-        <strong>Jacaranda2FA 00.00.31</strong><br />
+        <strong>Jacaranda2FA 01.00.00</strong><br />
         DNN validates the normal password first. Jacaranda2FA then applies the policy below and, where required, verifies a TOTP authenticator code, emailed one-time code, unused recovery code, or valid trusted-browser token before reporting successful authentication to DNN.
     </div>
 

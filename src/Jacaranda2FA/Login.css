@@ -1,4 +1,4 @@
-/* Jacaranda2FA - DNN two-factor authentication 00.00.31 */
+/* Jacaranda2FA - DNN two-factor authentication 01.00.00 */
 .jacaranda2fa-login .jacaranda2fa-intro {
     margin: 0 0 1.25rem 0;
     line-height: 1.55;
@@ -365,7 +365,7 @@ body .dnnLogin .jacaranda2fa-login input[type="text"].jacaranda2fa-recovery-code
     box-sizing: border-box !important;
 }
 
-/* 00.00.31 DNN popup/mobile min-width reset.
+/* 01.00.00 DNN popup/mobile min-width reset.
    DNN 10.3.2 default.css applies min-width:100% !important to login-form
    text/password inputs in dnnFormPopupMobileView. CSS min-width takes
    precedence over max-width, so the field stayed full-page width even when
