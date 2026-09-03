@@ -1,78 +1,56 @@
-Jacaranda2FA 01.00.00 — PUBLIC TESTING GUIDE
-================================================
+Jacaranda2FA 01.00.04 TESTING
+===============================
 
-Status
-------
-01.00.00 is the first public test release of Jacaranda2FA.
-
-Supported/tested DNN versions
------------------------------
-- DNN Platform 10.3.2
-- DNN Platform 10.3.3
-
-Before installation
--------------------
-1. Use a test or staging site first.
-2. Confirm DNN email/SMTP delivery works before depending on email OTP.
-3. Keep an existing logged-in SuperUser session open during initial setup.
-4. Back up the site and database using your normal DNN maintenance procedure.
-
-Fresh installation
-------------------
-1. Install Jacaranda2FA_01.00.00_Install.zip through DNN Extensions.
-2. Enable the Jacaranda2FA authentication provider.
-3. Initially leave DNN Normal Login enabled.
-4. Log out in a separate/private browser and test Jacaranda2FA.
-5. Test a normal registered user.
-6. Test a SuperUser.
-7. Enrol an authenticator app and confirm a current code.
-8. Generate recovery codes and store them securely.
-9. Test email fallback.
-10. Test trusted-browser creation and revocation.
-11. Review DNN Event Viewer for hidden exceptions.
-
-Mandatory 2FA enforcement
--------------------------
-Jacaranda2FA only controls logins that pass through its authentication provider.
-DNN Normal Login or another enabled authentication provider may provide an
-independent route that bypasses Jacaranda2FA.
-
-Before disabling alternative providers:
-- confirm SuperUser login works through Jacaranda2FA;
-- confirm a usable second factor exists;
-- retain unused recovery codes;
-- keep a logged-in SuperUser session open until testing is complete.
-
-Recommended public-test checks
-------------------------------
-- Correct and incorrect passwords.
-- Microsoft Authenticator.
-- Google Authenticator.
-- Incorrect authenticator code followed by a correct retry.
-- Email OTP and resend.
-- Incorrect email OTP followed by a correct retry.
-- Recovery code works once only.
-- Recovery-code replacement.
-- Trusted-browser creation, use and revoke-all.
-- 2FA policy for all users, privileged users and selected roles.
-- Account Security authenticator setup/replacement/removal.
-- DNN Normal Login disabled: registered-user and SuperUser login.
-- Default DNN skin and any production skin.
-- Desktop and mobile/narrow widths.
-- DNN Event Viewer after each major scenario.
-
-Security reporting
-------------------
-Please do not publish exploitable security details in a public issue before the
-maintainer has had a reasonable opportunity to investigate.
-
-Report suspected security vulnerabilities privately to:
-webmaster@forrestitservices.org
-
-Include the Jacaranda2FA version, DNN version, reproduction steps and relevant
-sanitised Event Viewer information. Do not send passwords, authenticator secrets,
-recovery codes, trusted-browser tokens, machine keys or database credentials.
-
-Licence
+Purpose
 -------
-MIT License. See license.txt.
+Restore the trusted-browser behaviour that worked in 01.00.00 while retaining
+the 01.00.01 Other Login Options layout.
+
+Upgrade
+-------
+Install 01.00.04 directly over 01.00.03. No new SQL migration is included.
+
+Required tests
+--------------
+
+A. Authenticator app
+1. Sign in with valid DNN username/password.
+2. Tick Remember this browser for 2FA.
+3. Enter a valid authenticator code.
+4. Log out.
+5. Sign in again with the correct password.
+6. EXPECTED: no second-factor prompt.
+
+B. Email OTP
+1. Start a new challenge.
+2. Tick Remember this browser for 2FA.
+3. Choose Email me a code instead.
+4. Verify the email code.
+5. Log out.
+6. Sign in again with the correct password.
+7. EXPECTED: no second-factor prompt.
+
+C. Recovery code
+1. Start a new challenge.
+2. Tick Remember this browser for 2FA.
+3. Expand Other Login Options.
+4. Use a valid unused recovery code.
+5. Log out.
+6. Sign in again with the correct password.
+7. EXPECTED: no second-factor prompt.
+
+Negative test
+-------------
+Repeat each path without selecting Remember this browser for 2FA.
+EXPECTED: the next password-valid login still requires a second factor.
+
+Regression
+----------
+- Trusted-browser revoke/delete works.
+- Other Login Options remains collapsed initially for authenticator users.
+- Email workflow reopens Other Login Options correctly.
+- Microsoft Authenticator works.
+- Google Authenticator works.
+- DNN Normal Login can remain disabled with Jacaranda2FA as sole provider.
+
+Test on DNN 10.3.2 and DNN 10.3.3 where available.

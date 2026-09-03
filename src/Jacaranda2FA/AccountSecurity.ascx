@@ -18,7 +18,7 @@
 <%@ Import Namespace="DotNetNuke.Services.Log.EventLog" %>
 
 <script runat="server">
-    private const string Version = "01.00.00";
+    private const string Version = "01.00.04";
     private const string SettingEnabled = "Jacaranda2FA_Enabled";
     private const string SettingPolicy = "Jacaranda2FA_Policy";
     private const string SettingRoleIds = "Jacaranda2FA_RoleIds";
@@ -1165,8 +1165,8 @@
     }
 </script>
 
-<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/Jacaranda2FA/AccountSecurity.css?v=01.00.00") %>" />
-<script type="text/javascript" src="<%= ResolveUrl("~/DesktopModules/Jacaranda2FA/qrcode-local.js?v=01.00.00") %>"></script>
+<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/Jacaranda2FA/AccountSecurity.css?v=01.00.04") %>" />
+<script type="text/javascript" src="<%= ResolveUrl("~/DesktopModules/Jacaranda2FA/qrcode-local.js?v=01.00.04") %>"></script>
 
 <div class="jacaranda2fa-account-security">
     <asp:Panel ID="pnlSignedOut" runat="server" Visible="false" CssClass="dnnFormMessage dnnFormInfo">
@@ -1179,7 +1179,7 @@
                 <h2>Two-Factor Authentication</h2>
                 <p>Manage the additional security methods attached to your DNN account.</p>
             </div>
-            <div class="jacaranda2fa-version">Jacaranda2FA 01.00.00</div>
+            <div class="jacaranda2fa-version">Jacaranda2FA 01.00.04</div>
         </header>
 
         <asp:Panel ID="pnlMessage" runat="server" Visible="false">

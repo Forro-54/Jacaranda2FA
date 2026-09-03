@@ -1,4 +1,4 @@
-/* Jacaranda2FA - DNN two-factor authentication 01.00.00 */
+/* Jacaranda2FA - DNN two-factor authentication 01.00.04 */
 .jacaranda2fa-login .jacaranda2fa-intro {
     margin: 0 0 1.25rem 0;
     line-height: 1.55;
@@ -410,3 +410,109 @@ body.dnnFormPopup.dnnFormPopupMobileView
     max-width: 18rem !important;
 }
 
+
+
+/* 01.00.04 verification hierarchy and fallback disclosure.
+   Authenticator remains the primary visible path. Email and recovery are grouped
+   under the native, keyboard-accessible Other Login Options disclosure when an
+   authenticator is enrolled. For accounts without an authenticator, the same
+   content is presented openly as the primary fallback path. */
+.jacaranda2fa-login .jacaranda2fa-verify {
+    display: flex;
+    flex-direction: column;
+}
+
+.jacaranda2fa-login .jacaranda2fa-primary-method {
+    order: 10;
+    margin-bottom: 0.4rem;
+}
+
+.jacaranda2fa-login .jacaranda2fa-trust-row {
+    order: 20;
+    margin-top: 0.15rem;
+    margin-bottom: 1rem;
+}
+
+.jacaranda2fa-login .jacaranda2fa-other-options {
+    order: 30;
+    display: block;
+    width: 100%;
+    max-width: 760px;
+    margin: 0.2rem 0 1rem 0;
+    padding: 0;
+    border: 1px solid rgba(128, 128, 128, 0.38);
+    border-radius: 6px;
+    box-sizing: border-box;
+    background: rgba(128, 128, 128, 0.035);
+}
+
+.jacaranda2fa-login .jacaranda2fa-other-options > summary {
+    display: list-item;
+    padding: 0.8rem 1rem;
+    font-weight: 700;
+    line-height: 1.35;
+    cursor: pointer;
+    user-select: none;
+}
+
+.jacaranda2fa-login .jacaranda2fa-other-options > summary:hover,
+.jacaranda2fa-login .jacaranda2fa-other-options > summary:focus {
+    text-decoration: underline;
+}
+
+.jacaranda2fa-login .jacaranda2fa-other-options-content {
+    padding: 0 1rem 0.9rem 1rem;
+}
+
+.jacaranda2fa-login .jacaranda2fa-other-options .jacaranda2fa-method-panel {
+    margin-top: 0.75rem;
+}
+
+.jacaranda2fa-login .jacaranda2fa-other-options .jacaranda2fa-recovery {
+    margin-top: 1rem;
+}
+
+/* Without an enrolled authenticator, email/recovery are the actual available
+   second-factor methods rather than secondary choices. Present them openly and
+   suppress the 'Other Login Options' summary label. */
+.jacaranda2fa-login .jacaranda2fa-primary-fallback {
+    border: 0;
+    background: transparent;
+    max-width: none;
+    margin-top: 0;
+}
+
+.jacaranda2fa-login .jacaranda2fa-primary-fallback > summary {
+    display: none;
+}
+
+.jacaranda2fa-login .jacaranda2fa-primary-fallback .jacaranda2fa-other-options-content {
+    padding: 0;
+}
+
+.jacaranda2fa-login .jacaranda2fa-no-authenticator .jacaranda2fa-other-options {
+    order: 10;
+}
+
+.jacaranda2fa-login .jacaranda2fa-no-authenticator .jacaranda2fa-trust-row {
+    order: 20;
+}
+
+.jacaranda2fa-login .jacaranda2fa-cancel-verification {
+    order: 40;
+}
+
+@media (max-width: 767px) {
+    .jacaranda2fa-login .jacaranda2fa-other-options {
+        max-width: 100%;
+    }
+
+    .jacaranda2fa-login .jacaranda2fa-other-options > summary {
+        padding: 0.75rem 0.85rem;
+    }
+
+    .jacaranda2fa-login .jacaranda2fa-other-options-content {
+        padding-left: 0.85rem;
+        padding-right: 0.85rem;
+    }
+}

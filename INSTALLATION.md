@@ -1,8 +1,8 @@
-# Installing Jacaranda2FA 01.00.00
+# Installing Jacaranda2FA 01.00.04
 
 ## Before you begin
 
-Jacaranda2FA 01.00.00 is the first public test release. Test it on a staging or
+Jacaranda2FA 01.00.04 is a public-test usability update to the first 01.00.00 release. Test it on a staging or
 non-production DNN site before relying on it for production authentication.
 
 It has been tested on DNN Platform 10.3.2 and 10.3.3.
@@ -16,7 +16,7 @@ Before installation:
 ## Fresh installation
 
 1. Open **Settings > Extensions** in DNN.
-2. Install `Jacaranda2FA_01.00.00_Install.zip`.
+2. Install `Jacaranda2FA_01.00.04_Install.zip`.
 3. Confirm installation completes without manifest or SQL errors.
 4. Open the authentication-provider settings.
 5. Enable **Jacaranda2FA**.
@@ -75,3 +75,8 @@ logic and retains a minimum DNN CoreVersion dependency of 10.03.02.
 
 Keep the previously working package and a normal DNN backup until public testing
 is complete. A security extension should never be the site's only recovery plan.
+
+
+## Upgrade from 01.00.00
+
+Install 01.00.04 directly over 01.00.01. Do not uninstall first. There is no new SQL migration in 01.00.04.

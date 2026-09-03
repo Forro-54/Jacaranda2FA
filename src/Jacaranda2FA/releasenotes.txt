@@ -1,61 +1,33 @@
-Jacaranda2FA 01.00.00 — First Public Test Release
+Jacaranda2FA 01.00.04 — Trusted Browser Regression Correction
 
-Jacaranda2FA is a community two-factor authentication extension for DNN Platform.
+This maintenance release corrects the trusted-browser regression introduced by
+the 01.00.01 verification-screen state refactor.
 
-Tested successfully on:
-- DNN Platform 10.3.2
-- DNN Platform 10.3.3
-- The stock/default DNN skin
-- A production-style custom Bootstrap 5 skin
+Root cause:
+- 01.00.00 used the checked checkbox / raw Request.Form checkbox field directly
+  when deciding whether to create a trusted-browser token.
+- 01.00.01 replaced that proven path with a Session-based preference helper.
+- The 01.00.02 and 01.00.03 hidden-field changes improved redirect state handling
+  but still did not restore the original checkbox-post path as the primary source.
+- As a result, Remember this browser for 2FA could evaluate false for authenticator,
+  email OTP and recovery-code verification.
 
-Authentication methods tested:
-- Microsoft Authenticator
-- Google Authenticator
-- Email one-time verification codes
-- One-time recovery codes
-- Trusted/remembered browsers
+01.00.04 fix:
+- Restores the exact proven 01.00.00 concept as the first check:
+  chkTrustBrowser.Checked OR Request.Form[chkTrustBrowser.UniqueID] present.
+- A checked/posting checkbox immediately records TrustBrowserRequested = true.
+- The hidden 1/0 preference remains only as redirect-state support for the
+  authenticator -> email workflow.
+- Session state is used only when no explicit checkbox or hidden preference is
+  present.
+- The common trusted-browser token-creation routine is unchanged.
 
-01.00.00 promotes the confirmed-working 00.00.31 development baseline to the
-first public test release. There are no authentication, security-model,
-cryptographic, throttling, trusted-browser, recovery-code, TOTP, or database
-schema changes from 00.00.31.
+Security boundary unchanged:
+- DNN password validation is still required first.
+- Trusted-browser creation occurs only after successful second-factor verification.
+- HTTPS-only issuance, Secure/HttpOnly cookie handling, hashed token storage,
+  expiry and revocation are unchanged.
 
-Key capabilities:
-- DNN username/password validation remains under DNN control.
-- TOTP authenticator-app verification with replay protection.
-- Email OTP fallback.
-- One-time recovery codes.
-- Optional trusted-browser bypass after successful password validation.
-- Role-based 2FA enforcement.
-- Persistent cross-challenge second-factor throttling.
-- Security audit logging and configurable security controls.
-- User-facing Account Security module for authenticator, recovery-code and
-  trusted-browser management.
-- Responsive login and verification controls compatible with stock DNN 10.3.x.
-
-PUBLIC TEST RELEASE
-Administrators should first install and test Jacaranda2FA in a staging or test
-environment. Keep a logged-in SuperUser session available during initial
-configuration.
-
-IMPORTANT ENFORCEMENT NOTE
-Jacaranda2FA can enforce 2FA only on authentication paths that pass through
-Jacaranda2FA. If DNN Normal Login or another independent authentication provider
-remains enabled, users may be able to authenticate through that provider without
-Jacaranda2FA. Test all enabled authentication routes before relying on mandatory
-2FA enforcement.
-
-RECOVERY PRECAUTION
-Before disabling alternative authentication providers, confirm that at least one
-SuperUser can successfully sign in through Jacaranda2FA and retains a usable
-authenticator, email fallback or unused recovery code.
-
-EMAIL FALLBACK
-Email OTP is provided as a practical fallback. For higher-assurance accounts,
-an authenticator app plus securely stored recovery codes is preferred.
-
-No new SQL migration is introduced by 01.00.00. The installer retains the
-existing consolidated migrations required by the working release lineage.
-
-Licence: MIT
-Copyright (c) 2026 Forrest IT Services
+No database schema changes.
+No new SQL migration.
+No TOTP, email OTP, recovery-code, throttling, policy or cryptographic changes.

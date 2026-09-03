@@ -1,5 +1,49 @@
 # Changelog
 
+## 01.00.04
+
+- Corrected the trusted-browser regression introduced by the 01.00.01 UI/state refactor.
+- Restored the proven 01.00.00 checkbox-post test as the primary trusted-browser intent source: checked server control or raw posted checkbox field.
+- Hidden 1/0 state is now secondary and used to preserve selection across the clean authenticator-to-email redirect.
+- Session state is only a final fallback when no explicit checkbox/hidden state is posted.
+- Applies uniformly to authenticator, email OTP and recovery-code success paths.
+- Trusted-browser token creation/security implementation is unchanged.
+- No database, cryptographic, TOTP, email OTP, recovery-code, throttling or policy changes.
+- No new SQL migration.
+
+## 01.00.03
+
+- Fixed the remaining trusted-browser regression affecting email OTP and recovery-code verification.
+- Root cause was DNN dynamic authentication-provider loading: the browser posted the hidden 1/0 preference, but the late-loaded HiddenField control could retain its default value instead of receiving normal post-data hydration.
+- `CaptureTrustBrowserPreference()` now reads `Request.Form[trustBrowserPreferenceField.UniqueID]` directly before falling back to control/session state.
+- Explicit posted `1` requests trusted-browser creation; explicit posted `0` honours an intentional untick.
+- Retains the 01.00.01 Other Login Options UI and the 01.00.02 client-side hidden preference synchronisation.
+- Trusted-browser creation remains after successful second-factor verification only and remains HTTPS-only.
+- No database-schema, cryptographic, TOTP, email OTP, recovery-code, throttling or policy changes.
+- No new SQL migration.
+
+## 01.00.02
+
+- Fixed a 01.00.01 regression where “Remember this browser for 2FA” could be lost when switching to email verification.
+- Added an explicit hidden `1`/`0` trusted-browser preference field synchronised with the visible checkbox.
+- Preserves both selected and intentionally unselected states across DNN dynamic authentication-provider postbacks and clean verification-stage redirects.
+- Applies the same reliable preference handling to authenticator, email and recovery-code completion paths.
+- Trusted-browser creation still occurs only after successful second-factor verification and under the existing HTTPS/security controls.
+- Retains the 01.00.01 Other Login Options UI.
+- No database-schema, cryptographic, password-validation, throttling or policy changes.
+- No new SQL migration.
+
+## 01.00.01
+
+- Verification-screen usability update based on 01.00.00.
+- Moved “Remember this browser for 2FA” directly below the primary authenticator method.
+- Collapsed email verification and recovery-code fallback under native **Other Login Options** disclosure when an authenticator is enrolled.
+- Automatically expands fallback options when email has been selected or recovery retry is required.
+- Accounts without an authenticator continue to see usable fallback methods openly.
+- Preserves trusted-browser checkbox preference across clean verification redirects while retaining successful-second-factor-only token issuance.
+- No authentication-policy, cryptographic, throttling or database-schema changes.
+- No new SQL migration.
+
 ## 01.00.00
 
 - First public test release.

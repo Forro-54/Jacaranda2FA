@@ -1,8 +1,8 @@
 <dotnetnuke type="Package" version="6.0">
   <packages>
-    <package name="ForrestITServices.Jacaranda2FA" type="Auth_System" version="01.00.00">
+    <package name="ForrestITServices.Jacaranda2FA" type="Auth_System" version="01.00.04">
       <friendlyName>Jacaranda2FA</friendlyName>
-      <description>Jacaranda2FA 01.00.00 first public test release for DNN Platform 10.3.2 and 10.3.3. Provides TOTP authenticator apps, email verification, one-time recovery codes, trusted browsers, role-based enforcement, persistent second-factor throttling, security audit logging and configurable security controls.</description>
+      <description>Jacaranda2FA 01.00.04 trusted-browser regression correction. Restores the proven direct checkbox-post detection from 01.00.00 as the primary trusted-browser intent source while retaining redirect persistence for Other Login Options.</description>
       <owner>
         <name>Trevor Forrester</name>
         <organization>Forrest IT Services</organization>
@@ -37,7 +37,7 @@
             <script type="UnInstall">
               <path>Providers\DataProviders\SqlDataProvider</path>
               <name>Uninstall.SqlDataProvider</name>
-              <version>01.00.00</version>
+              <version>01.00.04</version>
             </script>
           </scripts>
         </component>
@@ -69,7 +69,7 @@
       </components>
     </package>
 
-    <package name="ForrestITServices.Jacaranda2FA.AccountSecurity" type="Module" version="01.00.00">
+    <package name="ForrestITServices.Jacaranda2FA.AccountSecurity" type="Module" version="01.00.04">
       <friendlyName>Jacaranda2FA Account Security</friendlyName>
       <description>User-facing Jacaranda2FA Account Security module for enrolling TOTP authenticator apps and managing email verification, recovery codes and trusted browsers.</description>
       <owner>

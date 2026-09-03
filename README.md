@@ -1,6 +1,16 @@
 # Jacaranda2FA
 
-**Jacaranda2FA 01.00.00 — First Public Test Release**
+**Jacaranda2FA 01.00.04 — Public Test Update**
+
+## 01.00.04 trusted-browser preference fix
+
+01.00.04 corrects a 01.00.01 UI-state regression where **Remember this browser for 2FA**
+could be lost when switching to email verification. The visible checkbox is now
+synchronised with an explicit hidden 1/0 preference field, so DNN dynamic-provider
+postbacks and clean redirects cannot silently drop the user's selection.
+
+There are no database or cryptographic changes in this release.
+
 
 Jacaranda2FA is a community two-factor authentication extension for **DNN Platform**.
 It keeps DNN responsible for normal username/password validation and final
@@ -8,7 +18,7 @@ authentication, while adding a second verification stage when policy requires it
 
 ## Tested compatibility
 
-01.00.00 has been tested successfully on:
+The 01.00.00 baseline was tested successfully on:
 
 - **DNN Platform 10.3.2**
 - **DNN Platform 10.3.3**
@@ -30,6 +40,15 @@ authentication, while adding a second verification stage when policy requires it
 - configurable OTP, resend, trusted-browser and recovery-code controls
 - Account Security module for authenticator, recovery-code and trusted-browser management
 - responsive login and verification controls
+
+## 01.00.04 verification-screen refinement
+
+- Keeps authenticator-app verification as the primary visible method.
+- Places **Remember this browser for 2FA** directly beneath the primary verification area.
+- Groups email and recovery fallbacks beneath **Other Login Options** for authenticator-enrolled users.
+- Reopens the fallback area automatically when email or recovery is actively being used.
+- Keeps fallback methods openly visible for accounts without an authenticator.
+- Preserves trusted-browser checkbox intent across clean verification-stage redirects without changing when a trusted-browser token may be issued.
 
 ## Authentication boundary
 
@@ -65,7 +84,7 @@ stored recovery codes is recommended for higher-assurance accounts.
 
 ## Installation
 
-Install `Jacaranda2FA_01.00.00_Install.zip` through DNN Extensions.
+Install `Jacaranda2FA_01.00.04_Install.zip` through DNN Extensions.
 
 For a fresh installation, enable Jacaranda2FA while leaving DNN Normal Login
 enabled for the first test. Verify Jacaranda2FA with a normal user and a SuperUser
@@ -75,10 +94,10 @@ See `INSTALLATION.md` and `PUBLIC-TESTING.md`.
 
 ## Upgrade from development versions
 
-01.00.00 is promoted directly from the confirmed-working **00.00.31** development
-baseline. Install 01.00.00 as an upgrade; do not uninstall the working extension first.
+01.00.04 is a UI/state refinement of the 01.00.00 public-test baseline. Install
+01.00.04 as an upgrade; do not uninstall the working extension first.
 
-There is **no new database migration in 01.00.00**.
+There is **no new database migration in 01.00.04**.
 
 ## Security
 
@@ -99,7 +118,7 @@ For suspected vulnerabilities, see `SECURITY.md`.
 
 ## Status
 
-01.00.00 is a **public test release**. Validate it in test/staging before production
+01.00.04 is a **public test update**. Validate it in test/staging before production
 deployment and retain normal DNN backup and recovery procedures.
 
 ## Licence

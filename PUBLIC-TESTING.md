@@ -1,4 +1,4 @@
-# Jacaranda2FA 01.00.00 Public Testing
+# Jacaranda2FA 01.00.04 Public Testing
 
 Thank you for testing Jacaranda2FA.
 
@@ -83,3 +83,42 @@ With a known-good logged-in SuperUser session retained:
 
 Please report exploitable security problems privately rather than publishing full
 details in a public issue. See `SECURITY.md`.
+
+
+## 01.00.04 UI checks
+
+- Authenticator primary path visible.
+- Remember this browser located below primary verification.
+- Other Login Options collapsed initially for authenticator users.
+- Email/recovery fallback expands and persists correctly through retries.
+- No-authenticator users are not forced through a collapsed fallback disclosure.
+
+
+## 01.00.04 trusted-browser regression check
+
+Please specifically test:
+
+- tick **Remember this browser for 2FA**
+- choose email verification
+- verify the email code successfully
+- sign out and sign back in with the correct password
+- confirm the trusted-browser bypass is honoured
+
+Also confirm that intentionally unticking the option before successful
+verification does not create a trusted-browser token.
+
+
+## 01.00.04 trusted-browser verification
+
+Please explicitly verify trusted-browser creation after all three second-factor
+paths:
+
+- authenticator app
+- email OTP
+- recovery code
+
+For each path, select **Remember this browser for 2FA**, complete verification,
+log out, and sign back in with the correct password. The second-factor prompt
+should be skipped on the trusted browser.
+
+Also test intentionally unticking the option before successful email verification.

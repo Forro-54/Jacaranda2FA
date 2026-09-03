@@ -29,7 +29,7 @@
     private const int DefaultTrustedBrowserDays = 30;
     private const int DefaultMaxTrustedBrowsers = 10;
     private const string TrustedCookiePrefix = "Jacaranda2FA.Trusted.";
-    private const string Version = "01.00.00";
+    private const string Version = "01.00.04";
     private const string SettingEnabled = "Jacaranda2FA_Enabled";
     private const string SettingPolicy = "Jacaranda2FA_Policy";
     private const string SettingRoleIds = "Jacaranda2FA_RoleIds";
@@ -177,6 +177,15 @@
         // checkbox as the single interactive control on both stock and custom skins.
         this.chkRemember.InputAttributes["class"] = "normalCheckBox jacaranda2fa-native-checkbox";
         this.chkTrustBrowser.InputAttributes["class"] = "normalCheckBox jacaranda2fa-native-checkbox";
+
+        // ASP.NET/DNN can omit the checkbox field itself from dynamically rebuilt
+        // authentication-provider postbacks. Keep an explicit 1/0 hidden value in
+        // sync with the user's selection so email/recovery verification can retain
+        // the trusted-browser request reliably across clean redirects.
+        string trustPreferenceClientId = HttpUtility.JavaScriptStringEncode(this.trustBrowserPreferenceField.ClientID);
+        string syncTrustPreference = "document.getElementById('" + trustPreferenceClientId + "').value=this.checked?'1':'0';";
+        this.chkTrustBrowser.InputAttributes["onclick"] = syncTrustPreference;
+        this.chkTrustBrowser.InputAttributes["onchange"] = syncTrustPreference;
 
         string returnUrl = DotNetNuke.Common.Globals.NavigateURL();
         string encodedReturnUrl = HttpUtility.UrlEncode(returnUrl);
@@ -659,6 +668,8 @@
         this.Session[this.Key("ExpiresUtcTicks")] = DateTime.UtcNow.AddMinutes(CodeLifetimeMinutes).Ticks;
         this.Session[this.Key("HasAuthenticator")] = hasAuthenticator;
         this.Session[this.Key("EmailCodeIssued")] = false;
+        this.Session[this.Key("OtherLoginOptionsExpanded")] = false;
+        this.Session[this.Key("TrustBrowserRequested")] = false;
 
         if (hasAuthenticator)
         {
@@ -693,6 +704,7 @@
             return;
         }
         this.HideMessage();
+        this.CaptureTrustBrowserPreference();
 
         if (!this.HasChallenge())
         {
@@ -785,7 +797,7 @@
             return;
         }
 
-        bool trustBrowser = this.chkTrustBrowser.Checked || this.Request.Form[this.chkTrustBrowser.UniqueID] != null;
+        bool trustBrowser = this.CurrentTrustBrowserPreference();
         this.CompleteChallengeAuthentication(user, userName, (UserLoginStatus)statusValue, rememberMe, trustBrowser, "TotpVerification", "Authenticator app verification succeeded");
     }
 
@@ -796,6 +808,7 @@
             return;
         }
         this.HideMessage();
+        this.CaptureTrustBrowserPreference();
 
         if (!this.HasChallenge())
         {
@@ -829,6 +842,8 @@
             return;
         }
 
+        this.Session[this.Key("OtherLoginOptionsExpanded")] = true;
+
         // DNN rebuilds authentication-provider controls on each request. Use the same
         // clean verification-stage redirect as the initial password -> 2FA transition
         // so the Jacaranda2FA tab remains selected and the email-code UI is restored
@@ -845,6 +860,7 @@
             return;
         }
         this.HideMessage();
+        this.CaptureTrustBrowserPreference();
 
         if (!this.HasChallenge())
         {
@@ -940,7 +956,7 @@
         }
 
         UserLoginStatus loginStatus = (UserLoginStatus)statusValue;
-        bool trustBrowser = this.chkTrustBrowser.Checked || this.Request.Form[this.chkTrustBrowser.UniqueID] != null;
+        bool trustBrowser = this.CurrentTrustBrowserPreference();
         this.CompleteChallengeAuthentication(user, userName, loginStatus, rememberMe, trustBrowser, "OtpVerification", "Email verification succeeded");
     }
 
@@ -951,6 +967,7 @@
             return;
         }
         this.HideMessage();
+        this.CaptureTrustBrowserPreference();
 
         if (!this.HasChallenge())
         {
@@ -973,6 +990,7 @@
         }
 
         int userId = this.GetSessionInt("UserId");
+        this.Session[this.Key("OtherLoginOptionsExpanded")] = true;
         string recoveryCode = this.txtRecoveryCode.Text ?? string.Empty;
         if (recoveryCode.Length == 0)
         {
@@ -1034,7 +1052,7 @@
             return;
         }
 
-        bool trustBrowser = this.chkTrustBrowser.Checked || this.Request.Form[this.chkTrustBrowser.UniqueID] != null;
+        bool trustBrowser = this.CurrentTrustBrowserPreference();
         this.CompleteChallengeAuthentication(user, userName, (UserLoginStatus)statusValue, rememberMe, trustBrowser, "RecoveryCodeVerification", "Recovery code accepted");
     }
 
@@ -1070,6 +1088,7 @@
             return;
         }
         this.HideMessage();
+        this.CaptureTrustBrowserPreference();
 
         if (!this.HasChallenge())
         {
@@ -1268,7 +1287,7 @@
 
             if (!string.IsNullOrEmpty(error))
             {
-                Exceptions.LogException(new Exception("Jacaranda2FA 01.00.00 email delivery error: " + error));
+                Exceptions.LogException(new Exception("Jacaranda2FA 01.00.04 email delivery error: " + error));
                 this.LogSecurityEvent(resend ? "OtpResend" : "OtpSent", user.UserID, user.Username, "Failed", "DNN mail provider reported a delivery error.");
                 this.ShowMessage("DNN reported a problem sending the verification email. Check the site's SMTP configuration and Event Viewer.", true);
                 return false;
@@ -1924,8 +1943,8 @@
         {
             "UserId", "UserName", "LoginStatus", "RememberMe", "ResendCount",
             "CodeSalt", "CodeHash", "ExpiresUtcTicks", "LastSentUtcTicks", "Attempts",
-            "HasAuthenticator", "EmailCodeIssued", "VerificationFlashMessage",
-            "VerificationFlashIsError"
+            "HasAuthenticator", "EmailCodeIssued", "OtherLoginOptionsExpanded",
+            "TrustBrowserRequested", "VerificationFlashMessage", "VerificationFlashIsError"
         };
 
         for (int i = 0; i < names.Length; i++)
@@ -2048,6 +2067,57 @@
         return visible + new string('*', starCount) + "@" + domain;
     }
 
+    private bool CurrentTrustBrowserPreference()
+    {
+        return this.GetSessionBool("TrustBrowserRequested");
+    }
+
+    private void CaptureTrustBrowserPreference()
+    {
+        // Restore the proven 01.00.00 behaviour as the primary source of truth.
+        // ASP.NET checkboxes post their name only when checked, and the original
+        // Jacaranda2FA implementation successfully used this direct Request.Form
+        // test on authenticator, email and recovery verification.
+        bool checkboxPosted = this.Request != null &&
+                              this.Request.Form[this.chkTrustBrowser.UniqueID] != null;
+
+        if (this.chkTrustBrowser.Checked || checkboxPosted)
+        {
+            this.Session[this.Key("TrustBrowserRequested")] = true;
+            this.trustBrowserPreferenceField.Value = "1";
+            return;
+        }
+
+        // The hidden preference exists only to carry the choice through a clean
+        // authenticator -> email redirect. It must not override a checked checkbox.
+        string explicitValue = this.Request == null
+            ? string.Empty
+            : Convert.ToString(
+                this.Request.Form[this.trustBrowserPreferenceField.UniqueID],
+                CultureInfo.InvariantCulture);
+
+        explicitValue = (explicitValue ?? string.Empty).Trim();
+
+        if (string.Equals(explicitValue, "0", StringComparison.Ordinal))
+        {
+            this.Session[this.Key("TrustBrowserRequested")] = false;
+            this.trustBrowserPreferenceField.Value = "0";
+            return;
+        }
+
+        if (string.Equals(explicitValue, "1", StringComparison.Ordinal))
+        {
+            this.Session[this.Key("TrustBrowserRequested")] = true;
+            this.trustBrowserPreferenceField.Value = "1";
+            return;
+        }
+
+        // No explicit checkbox/hidden state was posted. Preserve any trust request
+        // already captured before a clean redirect.
+        bool requested = this.GetSessionBool("TrustBrowserRequested");
+        this.trustBrowserPreferenceField.Value = requested ? "1" : "0";
+    }
+
     private void ShowLoginPanel()
     {
         this.pnlLogin.Visible = true;
@@ -2064,11 +2134,37 @@
         bool hasAuthenticator = this.HasTotpAuthenticator(userId);
         bool emailIssued = this.GetSessionBool("EmailCodeIssued");
         bool hasUsableEmail = user != null && !string.IsNullOrWhiteSpace(user.Email) && Mail.IsValidEmailAddress(user.Email, this.PortalId);
+        bool hasRecovery = this.HasUnusedRecoveryCodes(userId);
+        bool hasOtherOptions = (hasAuthenticator && (hasUsableEmail || hasRecovery)) || (!hasAuthenticator && (hasUsableEmail || hasRecovery));
+        bool otherOptionsExpanded = emailIssued || this.GetSessionBool("OtherLoginOptionsExpanded") || !hasAuthenticator;
+
+        this.pnlVerify.CssClass = hasAuthenticator
+            ? "jacaranda2fa-verify jacaranda2fa-has-authenticator"
+            : "jacaranda2fa-verify jacaranda2fa-no-authenticator";
 
         this.pnlAuthenticator.Visible = hasAuthenticator;
         this.pnlEmailChoice.Visible = hasAuthenticator && hasUsableEmail && !emailIssued;
         this.pnlEmailCode.Visible = emailIssued || (!hasAuthenticator && hasUsableEmail);
-        this.pnlRecovery.Visible = this.HasUnusedRecoveryCodes(userId);
+        this.pnlRecovery.Visible = hasRecovery;
+        this.otherLoginOptions.Visible = hasOtherOptions;
+        this.otherLoginOptions.Attributes["class"] = hasAuthenticator
+            ? "jacaranda2fa-other-options"
+            : "jacaranda2fa-other-options jacaranda2fa-primary-fallback";
+        if (otherOptionsExpanded)
+        {
+            this.otherLoginOptions.Attributes["open"] = "open";
+        }
+        else
+        {
+            this.otherLoginOptions.Attributes.Remove("open");
+        }
+
+        if (!this.IsPostBack)
+        {
+            bool trustBrowserRequested = this.GetSessionBool("TrustBrowserRequested");
+            this.chkTrustBrowser.Checked = trustBrowserRequested;
+            this.trustBrowserPreferenceField.Value = trustBrowserRequested ? "1" : "0";
+        }
 
         string maskedDestination = user != null ? this.MaskEmail(user.Email) : "the registered email address";
         this.litDestination.Text = HttpUtility.HtmlEncode(maskedDestination);
@@ -2076,15 +2172,19 @@
 
         if (hasAuthenticator && !emailIssued)
         {
-            this.litVerificationIntro.Text = "Open your authenticator app and enter its six-digit code. You can choose email verification instead if needed.";
+            this.litVerificationIntro.Text = "Enter the current six-digit code from your authenticator app.";
         }
         else if (emailIssued)
         {
-            this.litVerificationIntro.Text = "Enter the six-digit code sent to your registered email address.";
+            this.litVerificationIntro.Text = "Enter the six-digit code sent to your registered email address, or use your authenticator app if preferred.";
+        }
+        else if (hasUsableEmail)
+        {
+            this.litVerificationIntro.Text = "Enter the six-digit verification code sent to your registered email address.";
         }
         else
         {
-            this.litVerificationIntro.Text = "Complete one of the available second-factor methods below.";
+            this.litVerificationIntro.Text = "Complete the available second-factor method below.";
         }
     }
 
@@ -2102,7 +2202,7 @@
     }
 </script>
 
-<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/AuthenticationServices/Jacaranda2FA/Login.css?v=01.00.00") %>" />
+<link rel="stylesheet" type="text/css" href="<%= ResolveUrl("~/DesktopModules/AuthenticationServices/Jacaranda2FA/Login.css?v=01.00.04") %>" />
 
 <div class="dnnForm dnnLoginService dnnClear jacaranda2fa-login">
     <asp:HiddenField ID="actionField" runat="server" />
@@ -2112,7 +2212,7 @@
 
     <asp:Panel ID="pnlLogin" runat="server">
         <div class="jacaranda2fa-intro">
-            <strong>Jacaranda2FA <span class="jacaranda2fa-version">01.00.00</span></strong><br />
+            <strong>Jacaranda2FA <span class="jacaranda2fa-version">01.00.04</span></strong><br />
             Enter your normal DNN username and password. If the current Jacaranda2FA policy requires a second factor, an enrolled authenticator app is offered first; email verification and recovery codes remain available when configured.
         </div>
 
@@ -2147,13 +2247,13 @@
         </div>
     </asp:Panel>
 
-    <asp:Panel ID="pnlVerify" runat="server" Visible="false">
+    <asp:Panel ID="pnlVerify" runat="server" Visible="false" CssClass="jacaranda2fa-verify">
         <div class="jacaranda2fa-intro">
             <strong>Verify your sign-in</strong><br />
             <asp:Literal ID="litVerificationIntro" runat="server" />
         </div>
 
-        <asp:Panel ID="pnlAuthenticator" runat="server" Visible="false" CssClass="jacaranda2fa-method-panel">
+        <asp:Panel ID="pnlAuthenticator" runat="server" Visible="false" CssClass="jacaranda2fa-method-panel jacaranda2fa-primary-method">
             <div class="jacaranda2fa-method-heading"><strong>Authenticator app</strong><br />Enter the current six-digit code shown in your authenticator app.</div>
             <div class="dnnFormItem jacaranda2fa-code-row">
                 <div class="dnnLabel"><asp:Label ID="lblAuthenticatorCode" runat="server" AssociatedControlID="txtAuthenticatorCode" CssClass="dnnFormLabel" Text="Authenticator code" /></div>
@@ -2165,48 +2265,56 @@
             </div>
         </asp:Panel>
 
-        <asp:Panel ID="pnlEmailChoice" runat="server" Visible="false" CssClass="jacaranda2fa-method-panel jacaranda2fa-email-choice">
-            <div class="jacaranda2fa-method-heading"><strong>Email verification</strong><br />If you prefer, Jacaranda2FA can send a six-digit code to <strong><asp:Literal ID="litEmailChoiceDestination" runat="server" /></strong>.</div>
-            <div class="dnnFormItem jacaranda2fa-actions">
-                <span class="dnnFormLabel">&nbsp;</span>
-                <asp:Button ID="cmdUseEmail" runat="server" CssClass="dnnSecondaryAction" Text="Email me a code instead" CausesValidation="false" UseSubmitBehavior="true" />
-            </div>
-        </asp:Panel>
-
-        <asp:Panel ID="pnlEmailCode" runat="server" Visible="false" CssClass="jacaranda2fa-method-panel">
-            <div class="jacaranda2fa-method-heading"><strong>Email verification</strong><br />We sent a six-digit code to <strong><asp:Literal ID="litDestination" runat="server" /></strong>. The code expires after <asp:Literal ID="litCodeLifetime" runat="server" /> minute(s).</div>
-            <div class="dnnFormItem jacaranda2fa-code-row">
-                <div class="dnnLabel"><asp:Label ID="lblCode" runat="server" AssociatedControlID="txtCode" CssClass="dnnFormLabel" Text="Email verification code" /></div>
-                <asp:TextBox ID="txtCode" runat="server" CssClass="jacaranda2fa-code" style="display:block !important; width:100% !important; min-width:0 !important; max-width:14rem !important; box-sizing:border-box !important;" />
-            </div>
-            <div class="dnnFormItem jacaranda2fa-actions">
-                <span class="dnnFormLabel">&nbsp;</span>
-                <asp:Button ID="cmdVerify" runat="server" CssClass="dnnPrimaryAction" Text="Verify email code" CausesValidation="false" UseSubmitBehavior="true" />
-                <asp:Button ID="cmdResend" runat="server" CssClass="dnnSecondaryAction" Text="Resend email code" CausesValidation="false" UseSubmitBehavior="true" />
-            </div>
-        </asp:Panel>
-
         <div class="dnnFormItem jacaranda2fa-trust-row jacaranda2fa-checkbox-row">
             <div class="jacaranda2fa-checkbox-line">
                 <asp:CheckBox ID="chkTrustBrowser" runat="server" CssClass="normalCheckBox jacaranda2fa-checkbox-input" />
+                <asp:HiddenField ID="trustBrowserPreferenceField" runat="server" Value="0" />
                 <asp:Label ID="lblTrustBrowser" runat="server" AssociatedControlID="chkTrustBrowser" CssClass="jacaranda2fa-checkbox-label" Text="Remember this browser for 2FA" />
             </div>
             <div class="jacaranda2fa-checkbox-help">Skip the authenticator/email/recovery-code step on this browser for <asp:Literal ID="litTrustedDays" runat="server" /> day(s) after your password is accepted.</div>
         </div>
-        <div class="dnnFormItem jacaranda2fa-actions">
+
+        <details id="otherLoginOptions" runat="server" class="jacaranda2fa-other-options">
+            <summary>Other Login Options</summary>
+            <div class="jacaranda2fa-other-options-content">
+                <asp:Panel ID="pnlEmailChoice" runat="server" Visible="false" CssClass="jacaranda2fa-method-panel jacaranda2fa-email-choice">
+                    <div class="jacaranda2fa-method-heading"><strong>Email verification</strong><br />If you prefer, Jacaranda2FA can send a six-digit code to <strong><asp:Literal ID="litEmailChoiceDestination" runat="server" /></strong>.</div>
+                    <div class="dnnFormItem jacaranda2fa-actions">
+                        <span class="dnnFormLabel">&nbsp;</span>
+                        <asp:Button ID="cmdUseEmail" runat="server" CssClass="dnnSecondaryAction" Text="Email me a code instead" CausesValidation="false" UseSubmitBehavior="true" />
+                    </div>
+                </asp:Panel>
+
+                <asp:Panel ID="pnlEmailCode" runat="server" Visible="false" CssClass="jacaranda2fa-method-panel">
+                    <div class="jacaranda2fa-method-heading"><strong>Email verification</strong><br />We sent a six-digit code to <strong><asp:Literal ID="litDestination" runat="server" /></strong>. The code expires after <asp:Literal ID="litCodeLifetime" runat="server" /> minute(s).</div>
+                    <div class="dnnFormItem jacaranda2fa-code-row">
+                        <div class="dnnLabel"><asp:Label ID="lblCode" runat="server" AssociatedControlID="txtCode" CssClass="dnnFormLabel" Text="Email verification code" /></div>
+                        <asp:TextBox ID="txtCode" runat="server" CssClass="jacaranda2fa-code" style="display:block !important; width:100% !important; min-width:0 !important; max-width:14rem !important; box-sizing:border-box !important;" />
+                    </div>
+                    <div class="dnnFormItem jacaranda2fa-actions">
+                        <span class="dnnFormLabel">&nbsp;</span>
+                        <asp:Button ID="cmdVerify" runat="server" CssClass="dnnPrimaryAction" Text="Verify email code" CausesValidation="false" UseSubmitBehavior="true" />
+                        <asp:Button ID="cmdResend" runat="server" CssClass="dnnSecondaryAction" Text="Resend email code" CausesValidation="false" UseSubmitBehavior="true" />
+                    </div>
+                </asp:Panel>
+
+                <asp:Panel ID="pnlRecovery" runat="server" Visible="false" CssClass="jacaranda2fa-recovery">
+                    <div class="jacaranda2fa-recovery-heading"><strong>Recovery code</strong><br />If you cannot use the authenticator app or email verification, you may use one unused Jacaranda2FA recovery code for this account.</div>
+                    <div class="dnnFormItem">
+                        <div class="dnnLabel"><asp:Label ID="lblRecoveryCode" runat="server" AssociatedControlID="txtRecoveryCode" CssClass="dnnFormLabel" Text="Recovery code" /></div>
+                        <asp:TextBox ID="txtRecoveryCode" runat="server" CssClass="jacaranda2fa-recovery-code" style="display:block !important; width:100% !important; min-width:0 !important; max-width:18rem !important; box-sizing:border-box !important;" />
+                    </div>
+                    <div class="dnnFormItem jacaranda2fa-actions">
+                        <span class="dnnFormLabel">&nbsp;</span>
+                        <asp:Button ID="cmdRecovery" runat="server" CssClass="dnnSecondaryAction" Text="Use recovery code" CausesValidation="false" UseSubmitBehavior="true" />
+                    </div>
+                </asp:Panel>
+            </div>
+        </details>
+
+        <div class="dnnFormItem jacaranda2fa-actions jacaranda2fa-cancel-verification">
             <span class="dnnFormLabel">&nbsp;</span>
             <asp:Button ID="cmdCancelVerification" runat="server" CssClass="dnnSecondaryAction" Text="Cancel 2FA / Return to login options" CausesValidation="false" UseSubmitBehavior="true" />
         </div>
-        <asp:Panel ID="pnlRecovery" runat="server" Visible="false" CssClass="jacaranda2fa-recovery">
-            <div class="jacaranda2fa-recovery-heading"><strong>Recovery code</strong><br />If you cannot use the authenticator app or email verification, you may use one unused Jacaranda2FA recovery code for this account.</div>
-            <div class="dnnFormItem">
-                <div class="dnnLabel"><asp:Label ID="lblRecoveryCode" runat="server" AssociatedControlID="txtRecoveryCode" CssClass="dnnFormLabel" Text="Recovery code" /></div>
-                <asp:TextBox ID="txtRecoveryCode" runat="server" CssClass="jacaranda2fa-recovery-code" style="display:block !important; width:100% !important; min-width:0 !important; max-width:18rem !important; box-sizing:border-box !important;" />
-            </div>
-            <div class="dnnFormItem jacaranda2fa-actions">
-                <span class="dnnFormLabel">&nbsp;</span>
-                <asp:Button ID="cmdRecovery" runat="server" CssClass="dnnSecondaryAction" Text="Use recovery code" CausesValidation="false" UseSubmitBehavior="true" />
-            </div>
-        </asp:Panel>
     </asp:Panel>
 </div>

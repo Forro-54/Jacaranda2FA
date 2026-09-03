@@ -38,6 +38,6 @@ before treating Jacaranda2FA as mandatory 2FA.
 
 ## Supported public-test release
 
-Current public-test release: **01.00.00**
+Current public-test release: **01.00.04**
 
 Tested on DNN Platform 10.3.2 and 10.3.3.
